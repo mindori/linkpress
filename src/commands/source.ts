@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { addSlackSource, listSlackSources } from '../slack/index.js';
 
 export const sourceCommand = new Command('source')
   .description('Manage article sources');
@@ -9,9 +10,7 @@ sourceCommand
   .description('Add a new source (slack)')
   .action(async (type: string) => {
     if (type === 'slack') {
-      console.log(chalk.bold('\n🔗 Slack Source Setup\n'));
-      console.log(chalk.dim('This feature will be implemented in the next step.'));
-      console.log(chalk.dim('For now, use "linkpress add <url>" to add articles manually.'));
+      await addSlackSource();
     } else {
       console.log(chalk.red(`Unknown source type: ${type}`));
       console.log(chalk.dim('Available sources: slack'));
@@ -21,8 +20,7 @@ sourceCommand
 sourceCommand
   .command('list')
   .description('List configured sources')
-  .action(() => {
-    console.log(chalk.bold('\n📡 Configured Sources\n'));
-    console.log(chalk.dim('No sources configured yet.'));
-    console.log(chalk.dim('Add one with: linkpress source add slack'));
+  .action(async () => {
+    console.log(chalk.bold('\n📡 Configured Sources'));
+    await listSlackSources();
   });
