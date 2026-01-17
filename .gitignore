@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+# Internal Documents
+doc/ 
+# Build output
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# LinkPress data
+.linkpress/
+output/
+
+# Test coverage
+coverage/
