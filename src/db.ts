@@ -75,6 +75,15 @@ export function getUnprocessedArticles(): Article[] {
   return rows.map(rowToArticle);
 }
 
+export function getArticlesForReprocess(limit = 100): Article[] {
+  const database = getDb();
+  const rows = database.prepare(`
+    SELECT * FROM articles ORDER BY created_at DESC LIMIT ?
+  `).all(limit) as Record<string, unknown>[];
+  
+  return rows.map(rowToArticle);
+}
+
 export function getAllArticles(limit = 100): Article[] {
   const database = getDb();
   const rows = database.prepare(`
