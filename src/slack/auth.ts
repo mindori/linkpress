@@ -1,28 +1,48 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import open from 'open';
 import { SlackClient } from './client.js';
+import { extractSlackTokens } from './browser-auth.js';
 import { loadConfig, saveConfig } from '../config.js';
 import type { SlackSource, SlackChannel } from '../types.js';
 
 export async function addSlackSource(): Promise<void> {
   console.log(chalk.bold('\n🔗 Add Slack Workspace\n'));
-  
-  console.log(chalk.yellow('To connect Slack, you need to extract tokens from your browser.\n'));
-  
-  const { openBrowser } = await inquirer.prompt([{
-    type: 'confirm',
-    name: 'openBrowser',
-    message: 'Open Slack in browser to get tokens?',
-    default: true,
+
+  const { method } = await inquirer.prompt([{
+    type: 'list',
+    name: 'method',
+    message: 'How would you like to authenticate?',
+    choices: [
+      { name: '🤖 Automatic (opens browser, extracts tokens after login)', value: 'auto' },
+      { name: '📋 Manual (paste tokens from DevTools)', value: 'manual' },
+    ],
   }]);
 
-  if (openBrowser) {
-    await open('https://app.slack.com');
-    console.log(chalk.dim('\nSlack opened in browser. Follow these steps:\n'));
+  let token: string;
+  let cookie: string;
+
+  if (method === 'auto') {
+    const tokens = await extractSlackTokens();
+    if (!tokens) {
+      console.log(chalk.yellow('\nFalling back to manual method...\n'));
+      const manualTokens = await promptManualTokens();
+      token = manualTokens.token;
+      cookie = manualTokens.cookie;
+    } else {
+      token = tokens.token;
+      cookie = tokens.cookie;
+    }
+  } else {
+    const manualTokens = await promptManualTokens();
+    token = manualTokens.token;
+    cookie = manualTokens.cookie;
   }
 
+  await connectWithTokens(token, cookie);
+}
+
+async function promptManualTokens(): Promise<{ token: string; cookie: string }> {
   console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log(chalk.bold('\n📋 How to get your Slack tokens:\n'));
   console.log('1. Open Slack in your browser (app.slack.com)');
@@ -64,6 +84,10 @@ export async function addSlackSource(): Promise<void> {
     },
   }]);
 
+  return { token, cookie };
+}
+
+async function connectWithTokens(token: string, cookie: string): Promise<void> {
   const spinner = ora('Testing connection...').start();
 
   try {
@@ -75,8 +99,6 @@ export async function addSlackSource(): Promise<void> {
     const conversations = await client.getConversations();
     spinner.succeed(`Found ${conversations.length} conversations`);
 
-    const selfDm = conversations.find(c => c.isIm && c.user === user.id);
-    
     const choices = conversations
       .filter(c => !c.isIm || c.user === user.id)
       .map(c => {
@@ -111,7 +133,7 @@ export async function addSlackSource(): Promise<void> {
       },
     }]);
 
-    const selectedConversations = conversations.filter(c => 
+    const selectedConversations = conversations.filter(c =>
       selectedChannels.includes(c.id)
     );
 
