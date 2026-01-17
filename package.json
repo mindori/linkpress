@@ -1,17 +1,22 @@
 {
   "name": "linkpress",
   "version": "0.1.0",
-  "description": "Turn your Slack links into a personal tech magazine",
+  "description": "Turn your Slack links into a personal tech magazine with AI-powered summaries",
   "main": "dist/index.js",
+  "type": "module",
   "bin": {
     "linkpress": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "slack",
@@ -19,10 +24,24 @@
     "magazine",
     "cli",
     "ai",
-    "curation"
+    "curation",
+    "linkpress",
+    "tech",
+    "summary",
+    "claude",
+    "openai",
+    "gemini"
   ],
-  "author": "",
+  "author": "realmindori@gmail.com",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/realmindori/linkpress"
+  },
+  "homepage": "https://github.com/realmindori/linkpress#readme",
+  "bugs": {
+    "url": "https://github.com/realmindori/linkpress/issues"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@google/generative-ai": "^0.24.1",

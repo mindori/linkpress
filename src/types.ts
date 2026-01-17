@@ -40,6 +40,7 @@ export interface Config {
     provider: AIProvider;
     apiKey?: string;
     model: string;
+    language: string;
   };
   output: {
     directory: string;

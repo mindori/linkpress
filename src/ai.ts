@@ -152,14 +152,21 @@ export function parseSummary(summaryStr: string | undefined): ArticleSummary | n
   }
 }
 
-function buildPrompt(title: string, content: string, url: string): string {
-  return `You are a tech journalist. Analyze this article and create a newspaper-style briefing.
+function buildPrompt(title: string, content: string, url: string, language: string): string {
+  return `You are a SENIOR TECH JOURNALIST at a prestigious developer magazine.
+Your job is to create compelling, newspaper-style briefings that developers actually want to read.
 
-Title: ${title}
-URL: ${url}
-Content: ${content.substring(0, 6000)}
+---
 
-Respond in JSON format only:
+INPUT:
+- Title: ${title}
+- URL: ${url}
+- Content: ${content.substring(0, 6000)}
+
+---
+
+TASK: Create a briefing in JSON format.
+
 {
   "headline": "Catchy, newspaper-style headline (max 15 words)",
   "tldr": "One-sentence summary for busy readers",
@@ -174,12 +181,16 @@ Respond in JSON format only:
   "difficulty": "beginner|intermediate|advanced"
 }
 
-Guidelines:
-- Write in the SAME LANGUAGE as the article
-- Headline should be attention-grabbing but accurate
-- Key points should be actionable insights, not just descriptions
-- Tags: use technical topics (frontend, backend, ai, devops, database, security, career, etc.)
-- Make it feel like a professional tech newsletter`;
+---
+
+CRITICAL RULES:
+1. WRITE EVERYTHING IN ${language}. This is NOT optional. The output MUST be in ${language}.
+2. Headline should be ATTENTION-GRABBING but accurate—no clickbait lies.
+3. Key points should be ACTIONABLE insights, not just descriptions.
+4. Tags: use technical topics (frontend, backend, ai, devops, database, security, career, etc.)
+5. Difficulty: beginner (anyone can understand), intermediate (some experience needed), advanced (experts only)
+
+OUTPUT: JSON only, no explanation outside JSON.`;
 }
 
 async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<string> {
@@ -222,7 +233,8 @@ export async function summarizeArticle(
 
   const provider = config.ai.provider;
   const model = config.ai.model;
-  const prompt = buildPrompt(title, content, url);
+  const language = config.ai.language || 'English';
+  const prompt = buildPrompt(title, content, url, language);
 
   try {
     let text = '';

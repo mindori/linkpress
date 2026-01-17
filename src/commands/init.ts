@@ -12,6 +12,18 @@ const PROVIDER_CHOICES = [
   { name: 'Google (Gemini)', value: 'gemini' },
 ];
 
+const LANGUAGE_CHOICES = [
+  { name: 'English', value: 'English' },
+  { name: '한국어', value: '한국어' },
+  { name: '日本語', value: '日本語' },
+  { name: '中文', value: '中文' },
+  { name: 'Español', value: 'Español' },
+  { name: 'Português', value: 'Português' },
+  { name: 'Français', value: 'Français' },
+  { name: 'Deutsch', value: 'Deutsch' },
+  { name: 'Other (type manually)', value: '__other__' },
+];
+
 export const initCommand = new Command('init')
   .description('Initialize LinkPress configuration')
   .action(async () => {
@@ -88,6 +100,33 @@ export const initCommand = new Command('init')
     config.ai.model = finalModel;
     config.ai.apiKey = apiKey;
 
+    const { language: selectedLanguage } = await inquirer.prompt([{
+      type: 'list',
+      name: 'language',
+      message: 'Select your preferred language for summaries:',
+      choices: LANGUAGE_CHOICES,
+      default: config.ai.language || 'English',
+    }]);
+
+    let finalLanguage = selectedLanguage;
+
+    if (selectedLanguage === '__other__') {
+      const { manualLanguage } = await inquirer.prompt([{
+        type: 'input',
+        name: 'manualLanguage',
+        message: 'Enter language name:',
+        validate: (input: string) => {
+          if (!input.trim()) {
+            return 'Language is required.';
+          }
+          return true;
+        },
+      }]);
+      finalLanguage = manualLanguage;
+    }
+
+    config.ai.language = finalLanguage;
+
     const { outputFormat } = await inquirer.prompt([{
       type: 'list',
       name: 'outputFormat',
@@ -103,6 +142,7 @@ export const initCommand = new Command('init')
     console.log(chalk.green('\n✅ Configuration saved to'), chalk.cyan(getConfigDir()));
     console.log(chalk.dim(`   Provider: ${providerName}`));
     console.log(chalk.dim(`   Model: ${finalModel}`));
+    console.log(chalk.dim(`   Language: ${finalLanguage}`));
     
     console.log(chalk.dim('\nNext steps:'));
     console.log(chalk.dim('  1. Add a Slack source:'), chalk.white('linkpress source add slack'));

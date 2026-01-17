@@ -28,6 +28,7 @@ export function getDefaultConfig(): Config {
     ai: {
       provider: 'anthropic',
       model: '',
+      language: 'English',
     },
     output: {
       directory: path.join(CONFIG_DIR, 'output'),
