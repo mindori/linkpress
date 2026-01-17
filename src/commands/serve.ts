@@ -11,6 +11,15 @@ export const serveCommand = new Command('serve')
   .option('-p, --port <number>', 'Port number', '3000')
   .option('--no-open', 'Do not open browser automatically')
   .action(async (options) => {
+    process.on('SIGINT', () => {
+      console.log(chalk.dim('\n\n   Server stopped.\n'));
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', () => {
+      process.exit(0);
+    });
+
     const config = loadConfig();
     const outputDir = config.output.directory;
     const indexPath = path.join(outputDir, 'index.html');
@@ -30,7 +39,7 @@ export const serveCommand = new Command('serve')
       res.sendFile(indexPath);
     });
 
-    const server = app.listen(port, () => {
+    app.listen(port, () => {
       const url = `http://localhost:${port}`;
       
       console.log(chalk.bold('\n🌐 LinkPress Server Running\n'));
@@ -41,11 +50,5 @@ export const serveCommand = new Command('serve')
       if (options.open !== false) {
         open(url);
       }
-    });
-
-    process.on('SIGINT', () => {
-      console.log(chalk.dim('\n\n   Server stopped.\n'));
-      server.close();
-      process.exit(0);
     });
   });
