@@ -30,11 +30,14 @@ export interface SlackChannel {
   isSelfDM: boolean;
 }
 
+export type AIProvider = 'anthropic' | 'openai' | 'gemini';
+
 export interface Config {
   sources: {
     slack?: SlackSource[];
   };
   ai: {
+    provider: AIProvider;
     apiKey?: string;
     model: string;
   };

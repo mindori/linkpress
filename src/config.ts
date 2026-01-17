@@ -26,7 +26,8 @@ export function getDefaultConfig(): Config {
   return {
     sources: {},
     ai: {
-      model: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      model: '',
     },
     output: {
       directory: path.join(CONFIG_DIR, 'output'),
