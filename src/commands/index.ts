@@ -5,3 +5,4 @@ export { sourceCommand } from './source.js';
 export { syncCommand } from './sync.js';
 export { generateCommand } from './generate.js';
 export { serveCommand } from './serve.js';
+export { clearCommand } from './clear.js';

@@ -204,15 +204,220 @@ export async function listSlackSources(): Promise<void> {
     return;
   }
 
-  console.log(chalk.bold('\n📡 Slack Workspaces\n'));
+  console.log(chalk.bold('\n📡 Following Channels\n'));
 
-  sources.forEach((source, index) => {
-    console.log(chalk.white(`${index + 1}. ${source.workspace}`));
-    console.log(chalk.dim(`   Added: ${new Date(source.addedAt).toLocaleDateString()}`));
-    console.log(chalk.dim('   Channels:'));
-    source.channels.forEach(ch => {
-      console.log(chalk.dim(`     • ${ch.name}`));
+  for (const source of sources) {
+    for (const ch of source.channels) {
+      console.log(chalk.white(`  (${source.workspace}) ${ch.name}`));
+    }
+  }
+  console.log();
+}
+
+export async function removeSlackSource(): Promise<void> {
+  const config = loadConfig();
+  const sources = config.sources.slack || [];
+
+  if (sources.length === 0) {
+    console.log(chalk.yellow('\nNo Slack workspaces configured.'));
+    return;
+  }
+
+  const choices = sources.map((source, index) => ({
+    name: `${source.workspace} (${source.channels.length} channels)`,
+    value: index,
+  }));
+
+  const { selectedIndex } = await inquirer.prompt([{
+    type: 'list',
+    name: 'selectedIndex',
+    message: 'Select workspace to remove:',
+    choices,
+  }]);
+
+  const removed = sources[selectedIndex];
+  config.sources.slack = sources.filter((_, i) => i !== selectedIndex);
+  saveConfig(config);
+
+  console.log(chalk.green(`\n✅ Removed workspace: ${removed.workspace}\n`));
+}
+
+export async function addChannelToSource(): Promise<void> {
+  const config = loadConfig();
+  const sources = config.sources.slack || [];
+
+  if (sources.length === 0) {
+    console.log(chalk.yellow('\nNo Slack workspaces configured.'));
+    console.log(chalk.dim('Add one first with: linkpress source add slack'));
+    return;
+  }
+
+  let selectedSource: SlackSource;
+
+  if (sources.length === 1) {
+    selectedSource = sources[0];
+  } else {
+    const { sourceIndex } = await inquirer.prompt([{
+      type: 'list',
+      name: 'sourceIndex',
+      message: 'Select workspace:',
+      choices: sources.map((s, i) => ({ name: s.workspace, value: i })),
+    }]);
+    selectedSource = sources[sourceIndex];
+  }
+
+  const spinner = ora('Fetching channels...').start();
+
+  try {
+    const client = new SlackClient({ token: selectedSource.token, cookie: selectedSource.cookie });
+    const conversations = await client.getConversations();
+    spinner.succeed(`Found ${conversations.length} conversations`);
+
+    const existingIds = new Set(selectedSource.channels.map(ch => ch.id));
+
+    const availableConversations = conversations.filter(c => !existingIds.has(c.id));
+
+    if (availableConversations.length === 0) {
+      console.log(chalk.yellow('\nAll available channels are already added.'));
+      return;
+    }
+
+    const user = await client.testAuth();
+
+    const choices = availableConversations.map(c => {
+      let label = c.name;
+      if (c.isIm && c.user === user.id) {
+        label = '📝 My Saved Messages (DM to self)';
+      } else if (c.isPrivate) {
+        label = `🔒 ${c.name}`;
+      } else if (c.isMpim) {
+        label = `👥 ${c.name}`;
+      } else {
+        label = `# ${c.name}`;
+      }
+      return { name: label, value: c.id, conversation: c };
     });
-    console.log();
+
+    const { searchTerm } = await inquirer.prompt([{
+      type: 'input',
+      name: 'searchTerm',
+      message: 'Search channel (or press Enter to see all):',
+    }]);
+
+    const filteredChoices = searchTerm
+      ? choices.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      : choices;
+
+    if (filteredChoices.length === 0) {
+      console.log(chalk.yellow(`\nNo channels found matching "${searchTerm}"`));
+      return;
+    }
+
+    const { channelSearch } = await inquirer.prompt([{
+      type: 'list',
+      name: 'channelSearch',
+      message: `Select channel to add (${filteredChoices.length} found):`,
+      choices: filteredChoices.slice(0, 30),
+      pageSize: 15,
+    }]);
+
+    const selectedConv = conversations.find(c => c.id === channelSearch);
+    if (!selectedConv) return;
+
+    let channelName = selectedConv.name;
+    if (selectedConv.isIm) {
+      if (selectedConv.user === user.id) {
+        channelName = 'Saved Messages';
+      } else if (selectedConv.user) {
+        try {
+          const userInfo = await client.getUserInfo(selectedConv.user);
+          channelName = `DM: ${userInfo.realName}`;
+        } catch {
+          channelName = `DM: ${selectedConv.user}`;
+        }
+      }
+    }
+
+    const newChannel: SlackChannel = {
+      id: selectedConv.id,
+      name: channelName,
+      isPrivate: selectedConv.isPrivate || selectedConv.isIm || selectedConv.isMpim,
+      isSelfDM: selectedConv.isIm && selectedConv.user === user.id,
+    };
+
+    selectedSource.channels.push(newChannel);
+    saveConfig(config);
+
+    console.log(chalk.green(`\n✅ Added channel: ${channelName} to ${selectedSource.workspace}\n`));
+
+  } catch (error) {
+    spinner.fail(chalk.red('Failed to fetch channels'));
+    if (error instanceof Error) {
+      console.log(chalk.red(`Error: ${error.message}`));
+    }
+  }
+}
+
+export async function removeChannelFromSource(): Promise<void> {
+  const config = loadConfig();
+  const sources = config.sources.slack || [];
+
+  if (sources.length === 0) {
+    console.log(chalk.yellow('\nNo Slack workspaces configured.'));
+    return;
+  }
+
+  const allChannels: Array<{ workspace: string; sourceIndex: number; channel: SlackChannel; channelIndex: number }> = [];
+
+  sources.forEach((source, sourceIndex) => {
+    source.channels.forEach((channel, channelIndex) => {
+      allChannels.push({ workspace: source.workspace, sourceIndex, channel, channelIndex });
+    });
   });
+
+  if (allChannels.length === 0) {
+    console.log(chalk.yellow('\nNo channels configured.'));
+    return;
+  }
+
+  const choices = allChannels.map((item, index) => ({
+    name: `(${item.workspace}) ${item.channel.name}`,
+    value: index,
+  }));
+
+  const { selectedIndex } = await inquirer.prompt([{
+    type: 'list',
+    name: 'selectedIndex',
+    message: 'Select channel to remove:',
+    choices,
+    pageSize: 15,
+  }]);
+
+  const selected = allChannels[selectedIndex];
+  const source = sources[selected.sourceIndex];
+  const removedChannel = source.channels[selected.channelIndex];
+
+  source.channels = source.channels.filter((_, i) => i !== selected.channelIndex);
+
+  if (source.channels.length === 0) {
+    const { removeWorkspace } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'removeWorkspace',
+      message: `This was the last channel in ${source.workspace}. Remove the workspace too?`,
+      default: true,
+    }]);
+
+    if (removeWorkspace) {
+      config.sources.slack = sources.filter((_, i) => i !== selected.sourceIndex);
+      console.log(chalk.green(`\n✅ Removed channel and workspace: ${source.workspace}\n`));
+    } else {
+      saveConfig(config);
+      console.log(chalk.green(`\n✅ Removed channel: ${removedChannel.name}\n`));
+    }
+  } else {
+    saveConfig(config);
+    console.log(chalk.green(`\n✅ Removed channel: ${removedChannel.name} from ${source.workspace}\n`));
+  }
+
+  saveConfig(config);
 }

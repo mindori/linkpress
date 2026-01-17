@@ -14,6 +14,18 @@ export interface ArticleSummary {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
 }
 
+export type ContentType = 'article' | 'announcement' | 'discussion' | 'reference' | 'social' | 'media' | 'internal' | 'other';
+export type TechnicalDepth = 'none' | 'shallow' | 'moderate' | 'deep' | 'expert';
+export type Actionability = 'none' | 'awareness' | 'applicable' | 'reference';
+
+export interface ContentClassification {
+  contentType: ContentType;
+  technicalDepth: TechnicalDepth;
+  actionability: Actionability;
+  shouldCollect: boolean;
+  reasoning: string;
+}
+
 export interface ModelInfo {
   id: string;
   name: string;
@@ -275,6 +287,166 @@ export async function summarizeArticle(
     console.error('AI summarization failed:', error);
     return getDefaultSummary(title, url);
   }
+}
+
+function buildClassificationPrompt(messageText: string, url: string, title: string, description: string): string {
+  return `You are a SENIOR TECH EDITOR at a developer magazine.
+Your job is to decide whether a shared link is worth featuring in a curated tech newsletter.
+You have HIGH STANDARDS but also recognize that valuable insights come in many forms—from in-depth blog posts to concise social media threads.
+
+---
+
+INPUT:
+- Slack Message: "${messageText}"
+- Link URL: "${url}"
+- Link Title: "${title}"
+- Link Description: "${description}"
+
+---
+
+TASK: Classify this content along THREE axes.
+
+### Axis 1: content_type
+- article: Blog post, tutorial, guide, essay
+- announcement: Release notes, launch posts, product updates
+- discussion: HN/Reddit threads, GitHub issues, forum Q&A
+- reference: API docs, RFCs, specifications, official documentation
+- social: Twitter/X threads, LinkedIn posts, Threads, Mastodon
+- media: YouTube videos, podcasts, conference talks
+- internal: Jira, Notion, Figma, Google Docs, Slack permalinks
+- other: Memes, job postings, ads, unclassifiable
+
+### Axis 2: technical_depth
+- none: NO technical content whatsoever
+- shallow: Mentions tech but surface-level (news headline, brief take)
+- moderate: Explains concepts, may include code snippets
+- deep: Implementation details, substantial code, architecture
+- expert: Novel research, new algorithms, advances the field
+
+### Axis 3: actionability
+- none: Just information, nothing to do
+- awareness: Good to know, trend awareness
+- applicable: Can apply immediately (how-to, tutorial)
+- reference: Bookmark for later lookup
+
+---
+
+CRITICAL RULES:
+1. DO NOT judge by content length. A 5-tweet thread can be MORE valuable than a 10-page blog post.
+2. Social posts (X, LinkedIn, Threads) with technical insight ARE VALID. Many industry experts share alpha on social.
+3. "shallow" depth is ACCEPTABLE. Not everything needs to be a deep dive.
+4. internal links (Jira, Notion, Figma, Google Docs, Slack) are ALWAYS excluded—these are workspace tools, not content.
+5. media (videos, podcasts) are EXCLUDED for now—reading-focused newsletter.
+6. When in doubt about depth, lean toward INCLUSION.
+
+---
+
+OUTPUT FORMAT (JSON only, no explanation outside JSON):
+{
+  "content_type": "article|announcement|discussion|reference|social|media|internal|other",
+  "technical_depth": "none|shallow|moderate|deep|expert",
+  "actionability": "none|awareness|applicable|reference",
+  "should_collect": true|false,
+  "reasoning": "One sentence justification"
+}
+
+COLLECTION RULE:
+should_collect = (content_type IN [article, announcement, discussion, reference, social]) 
+                 AND (technical_depth IN [shallow, moderate, deep, expert])`;
+}
+
+export async function classifyContent(
+  messageText: string,
+  url: string,
+  title: string,
+  description: string
+): Promise<ContentClassification> {
+  const config = loadConfig();
+
+  if (!config.ai.apiKey) {
+    return getDefaultClassification(url);
+  }
+
+  const provider = config.ai.provider;
+  const model = config.ai.model;
+  const prompt = buildClassificationPrompt(messageText, url, title, description);
+
+  try {
+    let text = '';
+
+    switch (provider) {
+      case 'anthropic':
+        text = await callAnthropic(config.ai.apiKey, model, prompt);
+        break;
+      case 'openai':
+        text = await callOpenAI(config.ai.apiKey, model, prompt);
+        break;
+      case 'gemini':
+        text = await callGemini(config.ai.apiKey, model, prompt);
+        break;
+      default:
+        return getDefaultClassification(url);
+    }
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return getDefaultClassification(url);
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const contentType = parsed.content_type as ContentType;
+    const technicalDepth = parsed.technical_depth as TechnicalDepth;
+
+    const validTypes: ContentType[] = ['article', 'announcement', 'discussion', 'reference', 'social'];
+    const validDepths: TechnicalDepth[] = ['shallow', 'moderate', 'deep', 'expert'];
+
+    const shouldCollect = validTypes.includes(contentType) && validDepths.includes(technicalDepth);
+
+    return {
+      contentType,
+      technicalDepth,
+      actionability: parsed.actionability as Actionability,
+      shouldCollect,
+      reasoning: parsed.reasoning || '',
+    };
+  } catch (error) {
+    console.error('AI classification failed:', error);
+    return getDefaultClassification(url);
+  }
+}
+
+function getDefaultClassification(url: string): ContentClassification {
+  const urlLower = url.toLowerCase();
+
+  const internalPatterns = ['jira', 'notion.so', 'figma.com', 'docs.google.com', 'slack.com'];
+  if (internalPatterns.some(p => urlLower.includes(p))) {
+    return {
+      contentType: 'internal',
+      technicalDepth: 'none',
+      actionability: 'none',
+      shouldCollect: false,
+      reasoning: 'Internal workspace tool',
+    };
+  }
+
+  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
+    return {
+      contentType: 'media',
+      technicalDepth: 'moderate',
+      actionability: 'awareness',
+      shouldCollect: false,
+      reasoning: 'Video content excluded from reading-focused newsletter',
+    };
+  }
+
+  return {
+    contentType: 'article',
+    technicalDepth: 'shallow',
+    actionability: 'awareness',
+    shouldCollect: true,
+    reasoning: 'Default classification - assumed technical content',
+  };
 }
 
 function getDefaultSummary(title: string, url: string): ArticleSummary {

@@ -121,6 +121,14 @@ export function articleExists(url: string): boolean {
   return !!row;
 }
 
+export function clearAllArticles(): number {
+  const database = getDb();
+  const countResult = database.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number };
+  const count = countResult.count;
+  database.prepare('DELETE FROM articles').run();
+  return count;
+}
+
 function rowToArticle(row: Record<string, unknown>): Article {
   return {
     id: row.id as string,

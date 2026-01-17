@@ -9,6 +9,7 @@ import {
   syncCommand,
   generateCommand,
   serveCommand,
+  clearCommand,
 } from './commands/index.js';
 
 program
@@ -23,5 +24,6 @@ program.addCommand(sourceCommand);
 program.addCommand(syncCommand);
 program.addCommand(generateCommand);
 program.addCommand(serveCommand);
+program.addCommand(clearCommand);
 
 program.parse();

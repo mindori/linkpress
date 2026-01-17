@@ -4,6 +4,8 @@ import crypto from 'crypto';
 import { SlackClient } from './client.js';
 import { loadConfig } from '../config.js';
 import { insertArticle, articleExists } from '../db.js';
+import { classifyContent } from '../ai.js';
+import { t } from '../i18n.js';
 import type { Article } from '../types.js';
 
 const URL_REGEX = /https?:\/\/[^\s<>|]+/g;
@@ -91,10 +93,16 @@ function isArticleUrl(url: string): boolean {
   }
 }
 
+interface ExtractedLink {
+  url: string;
+  messageText: string;
+}
+
 export interface SyncResult {
   total: number;
   newArticles: number;
   skipped: number;
+  filtered: number;
 }
 
 export async function syncSlackSources(): Promise<SyncResult> {
@@ -102,51 +110,82 @@ export async function syncSlackSources(): Promise<SyncResult> {
   const sources = config.sources.slack || [];
 
   if (sources.length === 0) {
-    console.log(chalk.yellow('\nNo Slack sources configured.'));
-    console.log(chalk.dim('Add one with: linkpress source add slack'));
-    return { total: 0, newArticles: 0, skipped: 0 };
+    console.log(chalk.yellow(`\n${t('sync.noSources')}`));
+    console.log(chalk.dim(t('sync.noSourcesHint')));
+    return { total: 0, newArticles: 0, skipped: 0, filtered: 0 };
   }
 
   let totalUrls = 0;
   let newArticles = 0;
   let skipped = 0;
+  let filtered = 0;
 
   for (const source of sources) {
-    console.log(chalk.bold(`\n📡 Syncing: ${source.workspace}`));
+    console.log(chalk.bold(`\n📡 ${t('sync.syncing', { workspace: source.workspace })}`));
 
     const client = new SlackClient({ token: source.token, cookie: source.cookie });
 
     for (const channel of source.channels) {
-      const spinner = ora(`Fetching from ${channel.name}...`).start();
+      const spinner = ora(t('sync.fetching', { channel: channel.name })).start();
 
       try {
         const messages = await client.getConversationHistory(channel.id, { limit: 200 });
-        const allUrls: string[] = [];
+        const extractedLinks: ExtractedLink[] = [];
 
         for (const message of messages) {
           if (message.text) {
             const urls = extractUrls(message.text);
-            allUrls.push(...urls.filter(isArticleUrl));
+            for (const url of urls.filter(isArticleUrl)) {
+              extractedLinks.push({ url, messageText: message.text });
+            }
           }
         }
 
-        const uniqueUrls = [...new Set(allUrls)];
-        totalUrls += uniqueUrls.length;
+        const uniqueLinks = extractedLinks.reduce((acc, link) => {
+          if (!acc.some(l => l.url === link.url)) {
+            acc.push(link);
+          }
+          return acc;
+        }, [] as ExtractedLink[]);
+
+        totalUrls += uniqueLinks.length;
 
         let channelNew = 0;
         let channelSkipped = 0;
+        let channelFiltered = 0;
 
-        for (const url of uniqueUrls) {
-          if (articleExists(url)) {
+        let processed = 0;
+
+        for (const link of uniqueLinks) {
+          processed++;
+          spinner.text = t('sync.classifying', { 
+            channel: channel.name, 
+            current: processed, 
+            total: uniqueLinks.length 
+          });
+          if (articleExists(link.url)) {
             channelSkipped++;
             skipped++;
             continue;
           }
 
+          const classification = await classifyContent(
+            link.messageText,
+            link.url,
+            '',
+            ''
+          );
+
+          if (!classification.shouldCollect) {
+            channelFiltered++;
+            filtered++;
+            continue;
+          }
+
           const article: Article = {
             id: crypto.randomUUID(),
-            url,
-            title: url,
+            url: link.url,
+            title: link.url,
             tags: [],
             sourceType: 'slack',
             sourceId: channel.id,
@@ -159,10 +198,16 @@ export async function syncSlackSources(): Promise<SyncResult> {
         }
 
         spinner.succeed(
-          `${channel.name}: ${uniqueUrls.length} links found, ${channelNew} new, ${channelSkipped} already saved`
+          t('sync.channelResult', {
+            channel: channel.name,
+            total: uniqueLinks.length,
+            new: channelNew,
+            existing: channelSkipped,
+            filtered: channelFiltered,
+          })
         );
       } catch (error) {
-        spinner.fail(`${channel.name}: Failed to fetch`);
+        spinner.fail(t('sync.channelFailed', { channel: channel.name }));
         if (error instanceof Error) {
           console.log(chalk.dim(`  Error: ${error.message}`));
         }
@@ -170,5 +215,5 @@ export async function syncSlackSources(): Promise<SyncResult> {
     }
   }
 
-  return { total: totalUrls, newArticles, skipped };
+  return { total: totalUrls, newArticles, skipped, filtered };
 }
