@@ -606,10 +606,12 @@ function renderMagazineHtml(articles: Article[]): string {
     }
 
     .article-image {
+      display: block;
       width: 100%;
       height: 200px;
       overflow: hidden;
       background: var(--bg-inset);
+      cursor: pointer;
     }
 
     .article-image img {
@@ -1591,7 +1593,7 @@ function renderMagazineHtml(articles: Article[]): string {
         div.dataset.index = '01';
 
         const imageHtml = article.image ? 
-          '<div class="article-image"><img src="' + article.image + '" alt="" loading="lazy" onerror="this.onerror=null; this.parentElement.style.display=\\'none\\'; this.closest(\\'.article-card\\').classList.remove(\\'has-image\\');"></div>' : '';
+          '<a href="' + article.url + '" target="_blank" rel="noopener" class="article-image"><img src="' + article.image + '" alt="" loading="lazy" onerror="this.onerror=null; this.parentElement.style.display=\\'none\\'; this.closest(\\'.article-card\\').classList.remove(\\'has-image\\');"></a>' : '';
 
         div.innerHTML = \`
           <button class="read-toggle-btn" aria-label="Mark as \${isRead ? 'unread' : 'read'}">
@@ -1717,9 +1719,9 @@ function renderArticleCard(article: Article, index: number): string {
   const formattedIndex = String(index + 2).padStart(2, '0');
 
   const imageHtml = article.image ? `
-    <div class="article-image">
+    <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener" class="article-image">
       <img src="${escapeHtml(article.image)}" alt="" loading="lazy" onerror="this.onerror=null; this.parentElement.style.display='none'; this.closest('.article-card').classList.remove('has-image');" />
-    </div>
+    </a>
   ` : '';
 
   const keyPointsHtml = keyPoints.length > 0 ? `
