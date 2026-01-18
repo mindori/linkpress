@@ -27,6 +27,8 @@ function initSchema(): void {
       tags TEXT,
       difficulty TEXT,
       reading_time_minutes INTEGER,
+      image TEXT,
+      source_label TEXT,
       source_type TEXT NOT NULL,
       source_id TEXT,
       created_at TEXT NOT NULL,
@@ -37,6 +39,20 @@ function initSchema(): void {
     CREATE INDEX IF NOT EXISTS idx_articles_source ON articles(source_type, source_id);
     CREATE INDEX IF NOT EXISTS idx_articles_created ON articles(created_at);
   `);
+
+  migrateSchema(database);
+}
+
+function migrateSchema(database: Database.Database): void {
+  const columns = database.prepare("PRAGMA table_info(articles)").all() as Array<{ name: string }>;
+  const columnNames = columns.map(c => c.name);
+
+  if (!columnNames.includes('image')) {
+    database.exec('ALTER TABLE articles ADD COLUMN image TEXT');
+  }
+  if (!columnNames.includes('source_label')) {
+    database.exec('ALTER TABLE articles ADD COLUMN source_label TEXT');
+  }
 }
 
 export function insertArticle(article: Article): void {
@@ -98,7 +114,8 @@ export function updateArticle(article: Article): void {
   const stmt = database.prepare(`
     UPDATE articles SET
       title = ?, description = ?, content = ?, summary = ?,
-      tags = ?, difficulty = ?, reading_time_minutes = ?, processed_at = ?
+      tags = ?, difficulty = ?, reading_time_minutes = ?,
+      image = ?, source_label = ?, processed_at = ?
     WHERE id = ?
   `);
   
@@ -110,6 +127,8 @@ export function updateArticle(article: Article): void {
     JSON.stringify(article.tags),
     article.difficulty ?? null,
     article.readingTimeMinutes ?? null,
+    article.image ?? null,
+    article.sourceLabel ?? null,
     article.processedAt?.toISOString() ?? null,
     article.id
   );
@@ -140,6 +159,8 @@ function rowToArticle(row: Record<string, unknown>): Article {
     tags: JSON.parse((row.tags as string) || '[]'),
     difficulty: row.difficulty as Article['difficulty'],
     readingTimeMinutes: row.reading_time_minutes as number | undefined,
+    image: row.image as string | undefined,
+    sourceLabel: row.source_label as string | undefined,
     sourceType: row.source_type as Article['sourceType'],
     sourceId: row.source_id as string | undefined,
     createdAt: new Date(row.created_at as string),

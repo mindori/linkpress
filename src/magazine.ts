@@ -501,7 +501,6 @@ function renderMagazineHtml(articles: Article[]): string {
 
     .article-card {
       background: var(--bg-surface);
-      padding: 2.5rem;
       display: flex;
       flex-direction: column;
       min-height: auto;
@@ -510,6 +509,15 @@ function renderMagazineHtml(articles: Article[]): string {
       border-radius: 16px;
       transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 0 4px 20px var(--card-shadow);
+      overflow: hidden;
+    }
+
+    .article-card:not(.has-image) {
+      padding: 2.5rem;
+    }
+
+    .article-card.has-image .article-content {
+      padding: 1.5rem 2rem 2rem;
     }
 
     .article-card:hover {
@@ -528,6 +536,50 @@ function renderMagazineHtml(articles: Article[]): string {
       top: 1.5rem;
       right: 1.5rem;
       opacity: 0.4;
+      z-index: 1;
+    }
+
+    .article-card.has-image::before {
+      background: var(--bg-surface);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .article-image {
+      width: 100%;
+      height: 200px;
+      overflow: hidden;
+      background: var(--bg-inset);
+    }
+
+    .article-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top;
+      transition: transform 0.3s ease;
+    }
+
+    .article-image.error {
+      display: none;
+    }
+
+    .article-card.has-image:has(.article-image.error) {
+      padding: 2.5rem;
+    }
+
+    .article-card.has-image:has(.article-image.error) .article-content {
+      padding: 0;
+    }
+
+    .article-card:hover .article-image img {
+      transform: scale(1.05);
+    }
+
+    .article-content {
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
     }
 
     .article-meta-row {
@@ -677,6 +729,28 @@ function renderMagazineHtml(articles: Article[]): string {
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+
+    .article-source-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .article-source-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-subtle);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .article-source-divider {
+      color: var(--text-muted);
     }
 
     .article-source {
@@ -936,9 +1010,20 @@ function renderMagazineHtml(articles: Article[]): string {
       }
 
       .article-card {
-        padding: 1.75rem;
         border-radius: 12px;
         max-width: none;
+      }
+
+      .article-card:not(.has-image) {
+        padding: 1.75rem;
+      }
+
+      .article-card.has-image .article-content {
+        padding: 1.25rem 1.5rem 1.5rem;
+      }
+
+      .article-image {
+        height: 160px;
       }
 
       .article-headline {
@@ -955,6 +1040,10 @@ function renderMagazineHtml(articles: Article[]): string {
 
       .key-point-item {
         font-size: 0.85rem;
+      }
+
+      .article-source-info {
+        flex-wrap: wrap;
       }
 
       footer {
@@ -1158,10 +1247,17 @@ function renderArticleCard(article: Article, index: number): string {
   const whyItMatters = summary?.whyItMatters || '';
   const keyQuote = summary?.keyQuote || '';
   const difficulty = article.difficulty || 'intermediate';
+  const sourceLabel = article.sourceLabel || 'Article';
 
   const difficultyLabel = { beginner: '입문', intermediate: '중급', advanced: '심화' }[difficulty];
   const difficultyClass = `difficulty-${difficulty}`;
   const formattedIndex = String(index + 2).padStart(2, '0');
+
+  const imageHtml = article.image ? `
+    <div class="article-image">
+      <img src="${escapeHtml(article.image)}" alt="" loading="lazy" onerror="this.onerror=null; this.parentElement.style.display='none'; this.closest('.article-card').classList.remove('has-image');" />
+    </div>
+  ` : '';
 
   const keyPointsHtml = keyPoints.length > 0 ? `
     <div class="article-key-points">
@@ -1181,27 +1277,34 @@ function renderArticleCard(article: Article, index: number): string {
   ` : '';
 
   return `
-    <article class="article-card" data-tags="${article.tags.join(',')}" data-index="${formattedIndex}">
-      <div class="article-meta-row">
-        <span class="article-difficulty ${difficultyClass}">${difficultyLabel}</span>
-        <span class="article-reading-time">${article.readingTimeMinutes || '?'} min read</span>
-      </div>
+    <article class="article-card ${article.image ? 'has-image' : ''}" data-tags="${article.tags.join(',')}" data-index="${formattedIndex}">
+      ${imageHtml}
+      <div class="article-content">
+        <div class="article-meta-row">
+          <span class="article-difficulty ${difficultyClass}">${difficultyLabel}</span>
+          <span class="article-reading-time">${article.readingTimeMinutes || '?'} min read</span>
+        </div>
 
-      <h3 class="article-headline">
-        <a href="${article.url}" target="_blank" rel="noopener">${escapeHtml(headline)}</a>
-      </h3>
+        <h3 class="article-headline">
+          <a href="${article.url}" target="_blank" rel="noopener">${escapeHtml(headline)}</a>
+        </h3>
 
-      ${tldr ? `<p class="article-tldr">${escapeHtml(tldr)}</p>` : ''}
-      ${keyPointsHtml}
-      ${whyMattersHtml}
-      ${keyQuoteHtml}
+        ${tldr ? `<p class="article-tldr">${escapeHtml(tldr)}</p>` : ''}
+        ${keyPointsHtml}
+        ${whyMattersHtml}
+        ${keyQuoteHtml}
 
-      <div class="article-footer">
-        <span class="article-source">${escapeHtml(hostname)}</span>
-      </div>
+        <div class="article-footer">
+          <div class="article-source-info">
+            <span class="article-source-label">${escapeHtml(sourceLabel)}</span>
+            <span class="article-source-divider">·</span>
+            <span class="article-source">${escapeHtml(hostname)}</span>
+          </div>
+        </div>
 
-      <div class="article-tags">
-        ${article.tags.slice(0, 5).map(tag => `<span class="article-tag">${escapeHtml(tag)}</span>`).join('')}
+        <div class="article-tags">
+          ${article.tags.slice(0, 5).map(tag => `<span class="article-tag">${escapeHtml(tag)}</span>`).join('')}
+        </div>
       </div>
     </article>
   `;

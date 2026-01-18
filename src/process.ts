@@ -74,6 +74,8 @@ export async function processArticles(options: ProcessOptions = {}): Promise<Pro
         tags: summaryData.tags,
         difficulty: summaryData.difficulty,
         readingTimeMinutes: estimateReadingTime(scraped.content),
+        image: scraped.image,
+        sourceLabel: scraped.sourceLabel,
         processedAt: new Date(),
       };
 

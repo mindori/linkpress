@@ -8,6 +8,8 @@ export interface Article {
   tags: string[];
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   readingTimeMinutes?: number;
+  image?: string;
+  sourceLabel?: string;
   sourceType: 'slack' | 'manual' | 'import';
   sourceId?: string;
   createdAt: Date;

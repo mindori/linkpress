@@ -5,6 +5,8 @@ export interface ScrapedContent {
   description: string;
   content: string;
   siteName?: string;
+  image?: string;
+  sourceLabel?: string;
 }
 
 export async function scrapeUrl(url: string): Promise<ScrapedContent> {
@@ -54,6 +56,9 @@ function parseHtml(html: string, url: string): ScrapedContent {
     $('meta[property="og:site_name"]').attr('content') ||
     new URL(url).hostname.replace('www.', '');
 
+  const image = extractImage($, url);
+  const sourceLabel = detectSourceLabel(url);
+
   let content = '';
   
   const articleSelectors = [
@@ -90,7 +95,97 @@ function parseHtml(html: string, url: string): ScrapedContent {
     description: description.trim(),
     content,
     siteName,
+    image,
+    sourceLabel,
   };
+}
+
+function extractImage($: cheerio.CheerioAPI, url: string): string | undefined {
+  const ogImage = $('meta[property="og:image"]').attr('content');
+  if (ogImage) {
+    return resolveUrl(ogImage, url);
+  }
+
+  const twitterImage = $('meta[name="twitter:image"]').attr('content');
+  if (twitterImage) {
+    return resolveUrl(twitterImage, url);
+  }
+
+  const articleSelectors = ['article', '[role="main"]', 'main', '.post-content', '.article-content'];
+  for (const selector of articleSelectors) {
+    const img = $(`${selector} img`).first();
+    const src = img.attr('src') || img.attr('data-src');
+    if (src && !isIconOrLogo(src)) {
+      return resolveUrl(src, url);
+    }
+  }
+
+  return undefined;
+}
+
+function resolveUrl(imgUrl: string, baseUrl: string): string {
+  if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+    return imgUrl;
+  }
+  if (imgUrl.startsWith('//')) {
+    return 'https:' + imgUrl;
+  }
+  try {
+    return new URL(imgUrl, baseUrl).href;
+  } catch {
+    return imgUrl;
+  }
+}
+
+function isIconOrLogo(src: string): boolean {
+  const lower = src.toLowerCase();
+  return lower.includes('logo') || 
+         lower.includes('icon') || 
+         lower.includes('avatar') ||
+         lower.includes('favicon') ||
+         lower.includes('badge') ||
+         lower.endsWith('.svg') ||
+         lower.includes('1x1') ||
+         lower.includes('pixel');
+}
+
+function detectSourceLabel(url: string): string {
+  const hostname = new URL(url).hostname.toLowerCase();
+  
+  const labelMap: Record<string, string> = {
+    'medium.com': 'Blog',
+    'dev.to': 'Blog',
+    'hashnode.dev': 'Blog',
+    'velog.io': 'Blog',
+    'tistory.com': 'Blog',
+    'brunch.co.kr': 'Blog',
+    'substack.com': 'Newsletter',
+    'github.com': 'GitHub',
+    'github.io': 'Blog',
+    'linkedin.com': 'LinkedIn',
+    'twitter.com': 'Twitter',
+    'x.com': 'Twitter',
+    'reddit.com': 'Reddit',
+    'news.ycombinator.com': 'HackerNews',
+    'stackoverflow.com': 'StackOverflow',
+    'youtube.com': 'YouTube',
+    'youtu.be': 'YouTube',
+    'notion.so': 'Notion',
+    'notion.site': 'Notion',
+    'news.hada.io': 'News',
+  };
+
+  for (const [domain, label] of Object.entries(labelMap)) {
+    if (hostname.includes(domain)) {
+      return label;
+    }
+  }
+
+  if (hostname.includes('blog') || url.includes('/blog/')) {
+    return 'Blog';
+  }
+
+  return 'Article';
 }
 
 export function estimateReadingTime(content: string): number {
