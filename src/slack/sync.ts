@@ -105,13 +105,20 @@ export interface SyncResult {
   filtered: number;
 }
 
-export async function syncSlackSources(): Promise<SyncResult> {
-  const config = loadConfig();
-  const sources = config.sources.slack || [];
+export interface SyncOptions {
+  silent?: boolean;
+}
+
+export async function syncSlackSources(config?: ReturnType<typeof loadConfig>, options: SyncOptions = {}): Promise<SyncResult> {
+  const cfg = config || loadConfig();
+  const { silent = false } = options;
+  const sources = cfg.sources.slack || [];
 
   if (sources.length === 0) {
-    console.log(chalk.yellow(`\n${t('sync.noSources')}`));
-    console.log(chalk.dim(t('sync.noSourcesHint')));
+    if (!silent) {
+      console.log(chalk.yellow(`\n${t('sync.noSources')}`));
+      console.log(chalk.dim(t('sync.noSourcesHint')));
+    }
     return { total: 0, newArticles: 0, skipped: 0, filtered: 0 };
   }
 
@@ -121,12 +128,14 @@ export async function syncSlackSources(): Promise<SyncResult> {
   let filtered = 0;
 
   for (const source of sources) {
-    console.log(chalk.bold(`\n📡 ${t('sync.syncing', { workspace: source.workspace })}`));
+    if (!silent) {
+      console.log(chalk.bold(`\n📡 ${t('sync.syncing', { workspace: source.workspace })}`));
+    }
 
     const client = new SlackClient({ token: source.token, cookie: source.cookie });
 
     for (const channel of source.channels) {
-      const spinner = ora(t('sync.fetching', { channel: channel.name })).start();
+      const spinner = silent ? null : ora(t('sync.fetching', { channel: channel.name })).start();
 
       try {
         const messages = await client.getConversationHistory(channel.id, { limit: 200 });
@@ -158,11 +167,13 @@ export async function syncSlackSources(): Promise<SyncResult> {
 
         for (const link of uniqueLinks) {
           processed++;
-          spinner.text = t('sync.classifying', { 
-            channel: channel.name, 
-            current: processed, 
-            total: uniqueLinks.length 
-          });
+          if (spinner) {
+            spinner.text = t('sync.classifying', { 
+              channel: channel.name, 
+              current: processed, 
+              total: uniqueLinks.length 
+            });
+          }
           if (articleExists(link.url)) {
             channelSkipped++;
             skipped++;
@@ -197,7 +208,7 @@ export async function syncSlackSources(): Promise<SyncResult> {
           newArticles++;
         }
 
-        spinner.succeed(
+        spinner?.succeed(
           t('sync.channelResult', {
             channel: channel.name,
             total: uniqueLinks.length,
@@ -207,8 +218,8 @@ export async function syncSlackSources(): Promise<SyncResult> {
           })
         );
       } catch (error) {
-        spinner.fail(t('sync.channelFailed', { channel: channel.name }));
-        if (error instanceof Error) {
+        spinner?.fail(t('sync.channelFailed', { channel: channel.name }));
+        if (error instanceof Error && !silent) {
           console.log(chalk.dim(`  Error: ${error.message}`));
         }
       }

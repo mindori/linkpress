@@ -12,7 +12,7 @@ export interface MagazineOptions {
 
 export function generateMagazine(options: MagazineOptions = {}): string {
   const config = loadConfig();
-  const articles = getAllArticles(options.limit || 100);
+  const articles = getAllArticles(options.limit || 500);
   const processedArticles = articles.filter(a => a.processedAt);
 
   const outputDir = options.outputDir || config.output.directory;
@@ -74,6 +74,7 @@ function renderMagazineHtml(articles: Article[]): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LinkPress — Tech Feed</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%230a0a0b' rx='24'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%2317ead9'/%3E%3Cstop offset='100%25' stop-color='%236078ea'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon fill='url(%23g)' points='180,180 90,180 90,172 172,172 172,28 28,28 28,90 20,90 20,20 180,20'/%3E%3Cpath fill='url(%23g)' d='M95 50L95 110L125 110L125 100L108 100L108 50Z'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
   <style>
@@ -1192,6 +1193,46 @@ function renderMagazineHtml(articles: Article[]): string {
       }
     }
 
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .pagination-btn {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 0.6rem 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+      background: var(--bg-elevated);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .pagination-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .pagination-info {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 0 1rem;
+    }
+
     /* Empty state */
     .empty-state {
       grid-column: 1 / -1;
@@ -1269,6 +1310,11 @@ function renderMagazineHtml(articles: Article[]): string {
       <div class="empty-state-icon">✓</div>
       <p class="empty-state-text">No read articles yet.</p>
     </div>
+    <div class="pagination" id="pagination">
+      <button class="pagination-btn" id="prev-btn" disabled>← Prev</button>
+      <span class="pagination-info" id="page-info">Page 1 of 1</span>
+      <button class="pagination-btn" id="next-btn">Next →</button>
+    </div>
   </main>
 
   <footer>
@@ -1305,6 +1351,9 @@ function renderMagazineHtml(articles: Article[]): string {
       });
 
       let currentTab = 'unread';
+      let currentPage = 1;
+      const ITEMS_PER_PAGE = 20;
+      
       const unreadGrid = document.getElementById('unread-grid');
       const readGrid = document.getElementById('read-grid');
       const emptyUnread = document.getElementById('empty-unread');
@@ -1315,6 +1364,9 @@ function renderMagazineHtml(articles: Article[]): string {
       const footerReadingTime = document.getElementById('footer-reading-time');
       const statsArticles = document.querySelector('.stat-number');
       const statsMinutes = document.querySelectorAll('.stat-number')[1];
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const pageInfo = document.getElementById('page-info');
 
       function updateEmptyStates() {
         const unreadCards = unreadGrid.querySelectorAll('.article-card');
@@ -1329,6 +1381,46 @@ function renderMagazineHtml(articles: Article[]): string {
         }
       }
 
+      function updatePagination() {
+        const grid = currentTab === 'unread' ? unreadGrid : readGrid;
+        const allCards = Array.from(grid.querySelectorAll('.article-card'));
+        const totalPages = Math.ceil(allCards.length / ITEMS_PER_PAGE) || 1;
+        
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        allCards.forEach((card, idx) => {
+          const pageOfCard = Math.floor(idx / ITEMS_PER_PAGE) + 1;
+          card.style.display = pageOfCard === currentPage ? 'flex' : 'none';
+        });
+
+        prevBtn.disabled = currentPage <= 1;
+        nextBtn.disabled = currentPage >= totalPages;
+        pageInfo.textContent = 'Page ' + currentPage + ' of ' + totalPages;
+
+        const start = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+        const end = Math.min(currentPage * ITEMS_PER_PAGE, allCards.length);
+        sectionCount.textContent = start + '-' + end + ' of ' + allCards.length + ' stories';
+      }
+
+      prevBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          updatePagination();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+
+      nextBtn.addEventListener('click', () => {
+        const grid = currentTab === 'unread' ? unreadGrid : readGrid;
+        const totalPages = Math.ceil(grid.querySelectorAll('.article-card').length / ITEMS_PER_PAGE);
+        if (currentPage < totalPages) {
+          currentPage++;
+          updatePagination();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+
       function updateStats() {
         const unreadCards = unreadGrid.querySelectorAll('.article-card');
         const readCards = readGrid.querySelectorAll('.article-card');
@@ -1342,7 +1434,8 @@ function renderMagazineHtml(articles: Article[]): string {
         const totalUnread = unreadCards.length + (document.querySelector('.hero[data-read="false"]') ? 1 : 0);
         const totalUnreadTime = unreadTime + featuredTime;
 
-        unreadCountEl.textContent = unreadCards.length;
+        const featuredIsUnread = document.querySelector('.hero[data-read="false"]') ? 1 : 0;
+        unreadCountEl.textContent = unreadCards.length + featuredIsUnread;
         readCountEl.textContent = readCards.length;
         
         if (currentTab === 'unread') {
@@ -1356,10 +1449,12 @@ function renderMagazineHtml(articles: Article[]): string {
         if (statsMinutes) statsMinutes.textContent = totalUnreadTime;
 
         updateEmptyStates();
+        updatePagination();
       }
 
       function switchTab(tab) {
         currentTab = tab;
+        currentPage = 1;
         document.querySelectorAll('.tab-btn').forEach(btn => {
           btn.classList.toggle('active', btn.dataset.tab === tab);
         });
@@ -1371,6 +1466,8 @@ function renderMagazineHtml(articles: Article[]): string {
           unreadGrid.classList.add('hidden');
           readGrid.classList.remove('hidden');
         }
+        
+        updatePagination();
 
         updateStats();
       }
@@ -1429,6 +1526,109 @@ function renderMagazineHtml(articles: Article[]): string {
           toggleRead(card);
         });
       });
+
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+
+      updatePagination();
+
+      const evtSource = new EventSource('/api/events');
+      evtSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'new-article') {
+            const article = data.article;
+            addNewArticleCard(article);
+            showNotification(article);
+          }
+        } catch (e) {
+          console.error('SSE parse error:', e);
+        }
+      };
+
+      function showNotification(article) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('New Article', {
+            body: article.title || article.url,
+            icon: article.image || undefined,
+            tag: article.id,
+          });
+        }
+      }
+
+      function addNewArticleCard(article) {
+        const card = createArticleCard(article);
+        const firstCard = unreadGrid.querySelector('.article-card');
+        if (firstCard) {
+          unreadGrid.insertBefore(card, firstCard);
+        } else {
+          unreadGrid.appendChild(card);
+        }
+        updateStats();
+        
+        card.style.animation = 'none';
+        card.offsetHeight;
+        card.style.animation = 'fadeInUp 0.6s ease forwards';
+      }
+
+      function createArticleCard(article) {
+        const div = document.createElement('article');
+        const isRead = !!article.readAt;
+        const readingTime = article.readingTimeMinutes || 0;
+        const tags = article.tags || [];
+        const difficulty = article.difficulty || 'intermediate';
+        const difficultyLabels = { beginner: '입문', intermediate: '중급', advanced: '심화' };
+        
+        let hostname = '';
+        try { hostname = new URL(article.url).hostname.replace('www.', ''); } catch {}
+        
+        div.className = 'article-card' + (article.image ? ' has-image' : '');
+        div.dataset.tags = tags.join(',');
+        div.dataset.id = article.id;
+        div.dataset.read = String(isRead);
+        div.dataset.readingTime = String(readingTime);
+        div.dataset.index = '01';
+
+        const imageHtml = article.image ? 
+          '<div class="article-image"><img src="' + article.image + '" alt="" loading="lazy" onerror="this.onerror=null; this.parentElement.style.display=\\'none\\'; this.closest(\\'.article-card\\').classList.remove(\\'has-image\\');"></div>' : '';
+
+        div.innerHTML = \`
+          <button class="read-toggle-btn" aria-label="Mark as \${isRead ? 'unread' : 'read'}">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </button>
+          \${imageHtml}
+          <div class="article-content">
+            <div class="article-meta-row">
+              <span class="article-difficulty difficulty-\${difficulty}">\${difficultyLabels[difficulty]}</span>
+              <span class="article-reading-time">\${readingTime || '?'} min read</span>
+            </div>
+            <h3 class="article-headline">
+              <a href="\${article.url}" target="_blank" rel="noopener">\${article.title || article.url}</a>
+            </h3>
+            <div class="article-footer">
+              <div class="article-source-info">
+                <span class="article-source-label">\${article.sourceLabel || 'Article'}</span>
+                <span class="article-source-divider">·</span>
+                <span class="article-source">\${hostname}</span>
+              </div>
+            </div>
+            <div class="article-tags">
+              \${tags.slice(0, 5).map(tag => '<span class="article-tag">' + tag + '</span>').join('')}
+            </div>
+          </div>
+        \`;
+
+        div.querySelector('.read-toggle-btn').addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleRead(div);
+        });
+
+        return div;
+      }
     })();
   </script>
 </body>

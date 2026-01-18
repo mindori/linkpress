@@ -12,13 +12,11 @@ export const generateCommand = new Command('generate')
   .action(async (options) => {
     if (!options.skipProcess) {
       const limit = options.limit ? parseInt(options.limit, 10) : undefined;
-      const result = await processArticles({ limit, reprocess: options.reprocess });
+      const processedList = await processArticles({ limit, reprocess: options.reprocess });
 
       console.log(chalk.bold('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
       console.log(chalk.bold('📊 Processing Summary'));
-      console.log(chalk.green(`   Processed: ${result.processed}`));
-      console.log(chalk.red(`   Failed: ${result.failed}`));
-      console.log(chalk.dim(`   Skipped: ${result.skipped}`));
+      console.log(chalk.green(`   Processed: ${processedList.length}`));
       console.log(chalk.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
     }
 
@@ -32,7 +30,7 @@ export const generateCommand = new Command('generate')
     console.log(chalk.yellow(`   Pending: ${unprocessed.length}`));
 
     if (processed.length > 0) {
-      const outputPath = generateMagazine({ limit: 100 });
+      const outputPath = generateMagazine({ limit: 500 });
       console.log(chalk.bold('\n📰 Magazine Generated!'));
       console.log(chalk.cyan(`   ${outputPath}`));
       console.log(chalk.dim('\nRun "linkpress serve" to view your magazine.'));

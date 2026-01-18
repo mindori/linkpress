@@ -342,6 +342,7 @@ CRITICAL RULES:
 4. internal links (Jira, Notion, Figma, Google Docs, Slack) are ALWAYS excluded—these are workspace tools, not content.
 5. media (videos, podcasts) are EXCLUDED for now—reading-focused newsletter.
 6. When in doubt about depth, lean toward INCLUSION.
+7. For Twitter/X posts: If it mentions ANY tech topic (programming, tools, frameworks, AI, engineering, etc.), set technical_depth to at least "shallow". Only set "none" for purely personal/social content with zero tech relevance.
 
 ---
 
@@ -441,6 +442,16 @@ function getDefaultClassification(url: string): ContentClassification {
       actionability: 'awareness',
       shouldCollect: false,
       reasoning: 'Video content excluded from reading-focused newsletter',
+    };
+  }
+
+  if (urlLower.includes('x.com') || urlLower.includes('twitter.com')) {
+    return {
+      contentType: 'social',
+      technicalDepth: 'none',
+      actionability: 'none',
+      shouldCollect: false,
+      reasoning: 'Twitter/X excluded - content not scrapable',
     };
   }
 

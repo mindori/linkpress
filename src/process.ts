@@ -15,10 +15,15 @@ export interface ProcessResult {
 export interface ProcessOptions {
   limit?: number;
   reprocess?: boolean;
+  silent?: boolean;
 }
 
-export async function processArticles(options: ProcessOptions = {}): Promise<ProcessResult> {
-  const { limit, reprocess = false } = options;
+export interface ProcessedArticle extends Article {
+  isNew?: boolean;
+}
+
+export async function processArticles(options: ProcessOptions = {}): Promise<ProcessedArticle[]> {
+  const { limit, reprocess = false, silent = false } = options;
   
   const articles = reprocess 
     ? getArticlesForReprocess(limit || 100)
@@ -26,34 +31,35 @@ export async function processArticles(options: ProcessOptions = {}): Promise<Pro
   const toProcess = limit ? articles.slice(0, limit) : articles;
   
   if (toProcess.length === 0) {
-    console.log(chalk.yellow(reprocess 
-      ? '\nNo articles found to reprocess.' 
-      : '\nNo unprocessed articles found.'));
-    return { processed: 0, failed: 0, skipped: 0 };
+    if (!silent) {
+      console.log(chalk.yellow(reprocess 
+        ? '\nNo articles found to reprocess.' 
+        : '\nNo unprocessed articles found.'));
+    }
+    return [];
   }
 
   const config = loadConfig();
   const hasAiKey = !!config.ai.apiKey;
 
-  if (!hasAiKey) {
+  if (!hasAiKey && !silent) {
     console.log(chalk.yellow('\n⚠️  No AI API key configured. Summaries will be basic.'));
     console.log(chalk.dim('Run "linkpress init" to add your Anthropic API key.\n'));
   }
 
-  console.log(chalk.bold(`\n📰 ${reprocess ? 'Reprocessing' : 'Processing'} ${toProcess.length} articles...\n`));
+  if (!silent) {
+    console.log(chalk.bold(`\n📰 ${reprocess ? 'Reprocessing' : 'Processing'} ${toProcess.length} articles...\n`));
+  }
 
-  let processed = 0;
-  let failed = 0;
-  let skipped = 0;
+  const processedArticles: ProcessedArticle[] = [];
 
   for (let i = 0; i < toProcess.length; i++) {
     const article = toProcess[i];
-    const spinner = ora(`[${i + 1}/${toProcess.length}] ${truncate(article.url, 50)}`).start();
+    const spinner = silent ? null : ora(`[${i + 1}/${toProcess.length}] ${truncate(article.url, 50)}`).start();
 
     try {
       if (shouldSkip(article.url)) {
-        spinner.warn(chalk.dim('Skipped (unsupported URL type)'));
-        skipped++;
+        spinner?.warn(chalk.dim('Skipped (unsupported URL type)'));
         continue;
       }
 
@@ -65,7 +71,7 @@ export async function processArticles(options: ProcessOptions = {}): Promise<Pro
         article.url
       );
 
-      const updatedArticle: Article = {
+      const updatedArticle: ProcessedArticle = {
         ...article,
         title: summaryData.headline || scraped.title || article.url,
         description: scraped.description,
@@ -77,21 +83,21 @@ export async function processArticles(options: ProcessOptions = {}): Promise<Pro
         image: scraped.image,
         sourceLabel: scraped.sourceLabel,
         processedAt: new Date(),
+        isNew: true,
       };
 
       updateArticle(updatedArticle);
-      spinner.succeed(chalk.green(truncate(summaryData.headline || scraped.title || article.url, 60)));
-      processed++;
+      spinner?.succeed(chalk.green(truncate(summaryData.headline || scraped.title || article.url, 60)));
+      processedArticles.push(updatedArticle);
 
       await new Promise(resolve => setTimeout(resolve, 300));
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      spinner.fail(chalk.red(`Failed: ${errorMsg}`));
-      failed++;
+      spinner?.fail(chalk.red(`Failed: ${errorMsg}`));
     }
   }
 
-  return { processed, failed, skipped };
+  return processedArticles;
 }
 
 function shouldSkip(url: string): boolean {
