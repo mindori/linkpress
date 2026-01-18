@@ -67,6 +67,14 @@ linkpress source add slack
   <img src="assets/add.gif" alt="Connect Slack" width="800">
 </p>
 
+> **⚠️ Important:** When the browser opens, **DO NOT open in the Slack desktop app**. 
+> You must click **"Use Slack in your browser"** to continue.
+> The automatic token extraction only works in the browser, not in the desktop app.
+
+> **📝 Note:** We recommend the **Automatic** method (default). If automatic extraction fails, 
+> you can select **Manual** mode and paste tokens from your browser's DevTools. 
+> The CLI will guide you through the process.
+
 Select the channels you want to watch. LinkPress will collect all shared links from these channels.
 
 
