@@ -12,6 +12,14 @@ import {
   clearCommand,
 } from './commands/index.js';
 
+process.on('uncaughtException', (error) => {
+  if (error.name === 'ExitPromptError') {
+    console.log('\n');
+    process.exit(0);
+  }
+  throw error;
+});
+
 program
   .name('linkpress')
   .description('Turn your Slack links into a personal tech magazine')
