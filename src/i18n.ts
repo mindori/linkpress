@@ -30,7 +30,16 @@ type MessageKey =
   | 'init.enterLanguage'
   | 'init.selectOutputFormat'
   | 'init.configSaved'
-  | 'init.nextSteps';
+  | 'init.nextSteps'
+  | 'generate.processingSummary'
+  | 'generate.processed'
+  | 'generate.articleStats'
+  | 'generate.total'
+  | 'generate.ready'
+  | 'generate.pending'
+  | 'generate.magazineGenerated'
+  | 'generate.serveHint'
+  | 'generate.noArticles';
 
 const messages: Record<string, Record<MessageKey, string>> = {
   English: {
@@ -64,6 +73,15 @@ const messages: Record<string, Record<MessageKey, string>> = {
     'init.selectOutputFormat': 'Select output format:',
     'init.configSaved': 'Configuration saved to',
     'init.nextSteps': 'Next steps:',
+    'generate.processingSummary': 'Processing Summary',
+    'generate.processed': 'Processed: {count}',
+    'generate.articleStats': 'Article Stats',
+    'generate.total': 'Total: {count}',
+    'generate.ready': 'Ready: {count}',
+    'generate.pending': 'Pending: {count}',
+    'generate.magazineGenerated': 'Magazine Generated!',
+    'generate.serveHint': 'Run "linkpress serve" to view your magazine.',
+    'generate.noArticles': 'No processed articles yet. Run without --skip-process first.',
   },
   '한국어': {
     'sync.start': '아티클 동기화 중...',
@@ -96,6 +114,15 @@ const messages: Record<string, Record<MessageKey, string>> = {
     'init.selectOutputFormat': '출력 형식을 선택하세요:',
     'init.configSaved': '설정이 저장되었습니다:',
     'init.nextSteps': '다음 단계:',
+    'generate.processingSummary': '처리 요약',
+    'generate.processed': '처리됨: {count}',
+    'generate.articleStats': '아티클 현황',
+    'generate.total': '전체: {count}',
+    'generate.ready': '준비됨: {count}',
+    'generate.pending': '대기중: {count}',
+    'generate.magazineGenerated': '매거진 생성 완료!',
+    'generate.serveHint': '"linkpress serve" 명령어로 매거진을 확인하세요.',
+    'generate.noArticles': '처리된 아티클이 없습니다. --skip-process 옵션 없이 실행하세요.',
   },
   '日本語': {
     'sync.start': '記事を同期中...',
@@ -128,6 +155,15 @@ const messages: Record<string, Record<MessageKey, string>> = {
     'init.selectOutputFormat': '出力形式を選択:',
     'init.configSaved': '設定が保存されました:',
     'init.nextSteps': '次のステップ:',
+    'generate.processingSummary': '処理サマリー',
+    'generate.processed': '処理済み: {count}',
+    'generate.articleStats': '記事ステータス',
+    'generate.total': '合計: {count}',
+    'generate.ready': '準備完了: {count}',
+    'generate.pending': '保留中: {count}',
+    'generate.magazineGenerated': 'マガジンが生成されました！',
+    'generate.serveHint': '"linkpress serve"でマガジンを確認してください。',
+    'generate.noArticles': '処理済みの記事がありません。--skip-processなしで実行してください。',
   },
 };
 

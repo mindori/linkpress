@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { processArticles } from '../process.js';
 import { getAllArticles } from '../db.js';
 import { generateMagazine } from '../magazine.js';
+import { t } from '../i18n.js';
 
 export const generateCommand = new Command('generate')
   .description('Process articles and generate magazine')
@@ -15,8 +16,8 @@ export const generateCommand = new Command('generate')
       const processedList = await processArticles({ limit, reprocess: options.reprocess });
 
       console.log(chalk.bold('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-      console.log(chalk.bold('📊 Processing Summary'));
-      console.log(chalk.green(`   Processed: ${processedList.length}`));
+      console.log(chalk.bold(`📊 ${t('generate.processingSummary')}`));
+      console.log(chalk.green(`   ${t('generate.processed', { count: processedList.length })}`));
       console.log(chalk.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
     }
 
@@ -24,17 +25,17 @@ export const generateCommand = new Command('generate')
     const processed = articles.filter(a => a.processedAt);
     const unprocessed = articles.filter(a => !a.processedAt);
 
-    console.log(chalk.bold('📚 Article Stats'));
-    console.log(chalk.dim(`   Total: ${articles.length}`));
-    console.log(chalk.green(`   Ready: ${processed.length}`));
-    console.log(chalk.yellow(`   Pending: ${unprocessed.length}`));
+    console.log(chalk.bold(`📚 ${t('generate.articleStats')}`));
+    console.log(chalk.dim(`   ${t('generate.total', { count: articles.length })}`));
+    console.log(chalk.green(`   ${t('generate.ready', { count: processed.length })}`));
+    console.log(chalk.yellow(`   ${t('generate.pending', { count: unprocessed.length })}`));
 
     if (processed.length > 0) {
       const outputPath = generateMagazine({ limit: 500 });
-      console.log(chalk.bold('\n📰 Magazine Generated!'));
+      console.log(chalk.bold(`\n📰 ${t('generate.magazineGenerated')}`));
       console.log(chalk.cyan(`   ${outputPath}`));
-      console.log(chalk.dim('\nRun "linkpress serve" to view your magazine.'));
+      console.log(chalk.dim(`\n${t('generate.serveHint')}`));
     } else {
-      console.log(chalk.yellow('\nNo processed articles yet. Run without --skip-process first.'));
+      console.log(chalk.yellow(`\n${t('generate.noArticles')}`));
     }
   });

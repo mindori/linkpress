@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgb(23,234,217)"/>
+      <stop offset="100%" stop-color="rgb(96,120,234)"/>
+    </linearGradient>
+  </defs>
+  <polygon fill="url(#grad)" points="200,200 100,200 100,195.12 195.12,195.12 195.12,4.88 4.88,4.88 4.88,100 0,100 0,0 200,0"/>
+  <path fill="url(#grad)" d="M 110.5 26.5 L 110.5 100 L 136.75 100 L 136.75 93.7 L 117.85 93.7 L 117.85 26.5 Z"/>
+</svg>

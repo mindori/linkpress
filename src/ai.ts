@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { loadConfig } from './config.js';
 import type { AIProvider } from './types.js';
 
@@ -15,7 +15,7 @@ export interface ArticleSummary {
 }
 
 export type ContentType = 'article' | 'announcement' | 'discussion' | 'reference' | 'social' | 'media' | 'internal' | 'other';
-export type TechnicalDepth = 'none' | 'shallow' | 'moderate' | 'deep' | 'expert';
+export type TechnicalDepth = 'none' | 'shallow' | 'moderate' | 'deep' | 'expert' | 'unknown';
 export type Actionability = 'none' | 'awareness' | 'applicable' | 'reference';
 
 export interface ContentClassification {
@@ -294,70 +294,67 @@ export async function summarizeArticle(
 }
 
 function buildClassificationPrompt(messageText: string, url: string, title: string, description: string): string {
-  return `You are a SENIOR TECH EDITOR at a developer magazine.
-Your job is to decide whether a shared link is worth featuring in a curated tech newsletter.
-You have HIGH STANDARDS but also recognize that valuable insights come in many forms—from in-depth blog posts to concise social media threads.
-
----
+  return `You filter links for a tech newsletter. DEFAULT ACTION: COLLECT.
 
 INPUT:
-- Slack Message: "${messageText}"
-- Link URL: "${url}"
-- Link Title: "${title}"
-- Link Description: "${description}"
+- URL: ${url}
+- Context: ${messageText || '(none)'}
+- Title: ${title || '(none)'}  
+- Description: ${description || '(none)'}
 
 ---
 
-TASK: Classify this content along THREE axes.
+EXCLUDE ONLY these specific categories:
 
-### Axis 1: content_type
-- article: Blog post, tutorial, guide, essay
-- announcement: Release notes, launch posts, product updates
-- discussion: HN/Reddit threads, GitHub issues, forum Q&A
-- reference: API docs, RFCs, specifications, official documentation
-- social: Twitter/X threads, LinkedIn posts, Threads, Mastodon
-- media: YouTube videos, podcasts, conference talks
-- internal: Jira, Notion, Figma, Google Docs, Slack permalinks
-- other: Memes, job postings, ads, unclassifiable
+1. INTERNAL TOOLS (workspace/productivity apps, not public content):
+   - Google Docs/Sheets/Slides/Drive (docs.google.com, drive.google.com, share.google)
+   - Notion workspace pages (notion.so with private content)
+   - Figma files (figma.com)
+   - Jira/Confluence (atlassian.net)
+   - Canva designs (canva.com/design)
+   - Slack permalinks
 
-### Axis 2: technical_depth
-- none: NO technical content whatsoever
-- shallow: Mentions tech but surface-level (news headline, brief take)
-- moderate: Explains concepts, may include code snippets
-- deep: Implementation details, substantial code, architecture
-- expert: Novel research, new algorithms, advances the field
+2. VIDEO/AUDIO (reading-focused newsletter):
+   - YouTube (youtube.com, youtu.be)
+   - Vimeo, Twitch, podcasts
 
-### Axis 3: actionability
-- none: Just information, nothing to do
-- awareness: Good to know, trend awareness
-- applicable: Can apply immediately (how-to, tutorial)
-- reference: Bookmark for later lookup
+3. TWITTER/X ONLY (not scrapable):
+   - x.com, twitter.com
+   - NOTE: LinkedIn is NOT excluded. LinkedIn posts ARE scrapable.
 
----
+4. AUTH/TRANSACTIONAL pages:
+   - Login pages, confirmation tokens, password resets
+   - URLs with "confirm", "token=", "verify", "unsubscribe"
 
-CRITICAL RULES:
-1. DO NOT judge by content length. A 5-tweet thread can be MORE valuable than a 10-page blog post.
-2. Social posts (X, LinkedIn, Threads) with technical insight ARE VALID. Many industry experts share alpha on social.
-3. "shallow" depth is ACCEPTABLE. Not everything needs to be a deep dive.
-4. internal links (Jira, Notion, Figma, Google Docs, Slack) are ALWAYS excluded—these are workspace tools, not content.
-5. media (videos, podcasts) are EXCLUDED for now—reading-focused newsletter.
-6. When in doubt about depth, lean toward INCLUSION.
-7. For Twitter/X posts: If it mentions ANY tech topic (programming, tools, frameworks, AI, engineering, etc.), set technical_depth to at least "shallow". Only set "none" for purely personal/social content with zero tech relevance.
+5. OBVIOUS NON-CONTENT:
+   - Image files (.png, .jpg, .gif direct links)
+   - File downloads (.zip, .pdf direct links)
 
 ---
 
-OUTPUT FORMAT (JSON only, no explanation outside JSON):
+ALWAYS COLLECT (even without metadata):
+
+- GitHub repos/gists (github.com, gist.github.com) - developers share code there
+- LinkedIn posts (linkedin.com) - professionals share knowledge, IS scrapable
+- Blog platforms (medium.com, dev.to, substack.com, brunch.co.kr, velog.io, tistory.com)
+- Tech news (news.hada.io, news.ycombinator.com, techcrunch.com)
+- Any unknown domain - might be interesting, we'll scrape and find out
+- Product/tool pages - developers share useful tools
+
+---
+
+CRITICAL: Missing metadata (no title/description) is NOT a reason to exclude.
+We will scrape the content later. If someone shared it, it's probably worth checking.
+
+OUTPUT (JSON only):
 {
-  "content_type": "article|announcement|discussion|reference|social|media|internal|other",
-  "technical_depth": "none|shallow|moderate|deep|expert",
-  "actionability": "none|awareness|applicable|reference",
+  "content_type": "article|social|reference|internal|media|other",
+  "technical_depth": "shallow|moderate|deep|unknown",
   "should_collect": true|false,
-  "reasoning": "One sentence justification"
+  "reasoning": "Brief reason"
 }
 
-COLLECTION RULE:
-should_collect = (content_type IN [article, announcement, discussion, reference, social]) 
-                 AND (technical_depth IN [shallow, moderate, deep, expert])`;
+When uncertain, set should_collect: true.`;
 }
 
 export async function classifyContent(
@@ -400,19 +397,11 @@ export async function classifyContent(
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    const contentType = parsed.content_type as ContentType;
-    const technicalDepth = parsed.technical_depth as TechnicalDepth;
-
-    const validTypes: ContentType[] = ['article', 'announcement', 'discussion', 'reference', 'social'];
-    const validDepths: TechnicalDepth[] = ['shallow', 'moderate', 'deep', 'expert'];
-
-    const shouldCollect = validTypes.includes(contentType) && validDepths.includes(technicalDepth);
-
     return {
-      contentType,
-      technicalDepth,
-      actionability: parsed.actionability as Actionability,
-      shouldCollect,
+      contentType: parsed.content_type as ContentType,
+      technicalDepth: parsed.technical_depth as TechnicalDepth,
+      actionability: parsed.actionability as Actionability || 'awareness',
+      shouldCollect: parsed.should_collect === true,
       reasoning: parsed.reasoning || '',
     };
   } catch (error) {
@@ -424,7 +413,13 @@ export async function classifyContent(
 function getDefaultClassification(url: string): ContentClassification {
   const urlLower = url.toLowerCase();
 
-  const internalPatterns = ['jira', 'notion.so', 'figma.com', 'docs.google.com', 'slack.com'];
+  const internalPatterns = [
+    'docs.google.com', 'drive.google.com', 'share.google',
+    'sheets.google.com', 'slides.google.com',
+    'notion.so', 'figma.com', 'canva.com/design',
+    'atlassian.net', 'jira', 'confluence',
+    'slack.com/archives',
+  ];
   if (internalPatterns.some(p => urlLower.includes(p))) {
     return {
       contentType: 'internal',
@@ -435,23 +430,33 @@ function getDefaultClassification(url: string): ContentClassification {
     };
   }
 
-  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
+  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be') || urlLower.includes('vimeo.com')) {
     return {
       contentType: 'media',
       technicalDepth: 'moderate',
       actionability: 'awareness',
       shouldCollect: false,
-      reasoning: 'Video content excluded from reading-focused newsletter',
+      reasoning: 'Video content excluded',
     };
   }
 
   if (urlLower.includes('x.com') || urlLower.includes('twitter.com')) {
     return {
       contentType: 'social',
+      technicalDepth: 'unknown',
+      actionability: 'awareness',
+      shouldCollect: false,
+      reasoning: 'Twitter/X excluded - not scrapable',
+    };
+  }
+
+  if (urlLower.includes('/confirm') || urlLower.includes('token=') || urlLower.includes('/verify') || urlLower.includes('/unsubscribe')) {
+    return {
+      contentType: 'other',
       technicalDepth: 'none',
       actionability: 'none',
       shouldCollect: false,
-      reasoning: 'Twitter/X excluded - content not scrapable',
+      reasoning: 'Auth/transactional page',
     };
   }
 
@@ -460,7 +465,7 @@ function getDefaultClassification(url: string): ContentClassification {
     technicalDepth: 'shallow',
     actionability: 'awareness',
     shouldCollect: true,
-    reasoning: 'Default classification - assumed technical content',
+    reasoning: 'Default: collect and scrape',
   };
 }
 

@@ -190,6 +190,10 @@ export async function syncSlackSources(config?: ReturnType<typeof loadConfig>, o
           if (!classification.shouldCollect) {
             channelFiltered++;
             filtered++;
+            if (!silent) {
+              console.log(chalk.dim(`     ✗ ${link.url}`));
+              console.log(chalk.dim(`       → ${classification.reasoning}`));
+            }
             continue;
           }
 
