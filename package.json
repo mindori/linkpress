@@ -36,11 +36,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/realmindori/linkpress"
+    "url": "https://github.com/mindori/linkpress"
   },
-  "homepage": "https://github.com/realmindori/linkpress#readme",
+  "homepage": "https://github.com/mindori/linkpress#readme",
   "bugs": {
-    "url": "https://github.com/realmindori/linkpress/issues"
+    "url": "https://github.com/mindori/linkpress/issues"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
