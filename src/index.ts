@@ -15,7 +15,7 @@ import {
 program
   .name('linkpress')
   .description('Turn your Slack links into a personal tech magazine')
-  .version('0.2.0');
+  .version('0.2.1');
 
 program.addCommand(initCommand);
 program.addCommand(addCommand);
