@@ -1,46 +1,26 @@
-export interface Article {
-  id: string;
-  url: string;
-  title: string;
-  description?: string;
-  content?: string;
-  summary?: string;
-  tags: string[];
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
-  readingTimeMinutes?: number;
-  image?: string;
-  sourceLabel?: string;
-  sourceType: 'slack' | 'manual' | 'import';
-  sourceId?: string;
-  createdAt: Date;
-  processedAt?: Date;
-  readAt?: Date;
-}
-
-export interface SlackSource {
-  id: string;
-  workspace: string;
-  token: string;
-  cookie: string;
-  channels: SlackChannel[];
-  addedAt: Date;
-}
-
-export interface SlackChannel {
-  id: string;
-  name: string;
-  isPrivate: boolean;
-  isSelfDM: boolean;
-}
-
-export type AIProvider = 'anthropic' | 'openai' | 'gemini';
+export type {
+  Article,
+  AIProvider,
+  SlackSource,
+  SlackChannel,
+  SlackAuthConfig,
+  SlackUser,
+  SlackConversation,
+  SlackMessage,
+  ExtractedLink,
+  ScrapedContent,
+  ArticleSummary,
+  ContentClassification,
+  ModelInfo,
+  AIConfig,
+} from '@linkpress/core';
 
 export interface Config {
   sources: {
-    slack?: SlackSource[];
+    slack?: import('@linkpress/core').SlackSource[];
   };
   ai: {
-    provider: AIProvider;
+    provider: import('@linkpress/core').AIProvider;
     apiKey?: string;
     model: string;
     language: string;
@@ -55,7 +35,7 @@ export interface Magazine {
   id: string;
   title: string;
   generatedAt: Date;
-  articles: Article[];
+  articles: import('@linkpress/core').Article[];
   period: {
     from: Date;
     to: Date;

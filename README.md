@@ -77,6 +77,8 @@ linkpress source add slack
 
 Select the channels you want to watch. LinkPress will collect all shared links from these channels.
 
+> **💡 Tip:** Just press Enter without selecting anything — your **Saved Messages (DM to self)** is pre-selected by default. This is the easiest way to curate links: just forward interesting articles to yourself in Slack!
+
 
 ## Step 2: Sync Links
 
