@@ -240,7 +240,7 @@ async function waitForTokens(context: BrowserContext): Promise<SlackTokens | nul
         }
 
         debug('First extraction failed, reloading page...');
-        await slackPage.reload().catch(() => {});
+        await slackPage.reload().catch((e) => debug('Reload failed:', e instanceof Error ? e.message : String(e)));
         await slackPage.waitForTimeout(3000);
         
         const tokensAfterReload = await extractTokensFromPage(slackPage, context);

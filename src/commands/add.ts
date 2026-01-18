@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import crypto from 'crypto';
 import { insertArticle, articleExists } from '../db.js';
+import { isValidUrl } from '../utils.js';
 import type { Article } from '../types.js';
 
 export const addCommand = new Command('add')
@@ -40,11 +41,4 @@ export const addCommand = new Command('add')
     }
   });
 
-function isValidUrl(string: string): boolean {
-  try {
-    new URL(string);
-    return true;
-  } catch {
-    return false;
-  }
-}
+

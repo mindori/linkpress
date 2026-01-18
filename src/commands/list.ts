@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getAllArticles } from '../db.js';
+import { truncate } from '../utils.js';
 
 export const listCommand = new Command('list')
   .description('List all saved articles')
@@ -23,9 +24,7 @@ export const listCommand = new Command('list')
         : chalk.yellow('○');
       
       const title = article.title || article.url;
-      const truncatedTitle = title.length > 60 
-        ? title.substring(0, 57) + '...' 
-        : title;
+      const truncatedTitle = truncate(title, 60);
       
       console.log(`${status} ${chalk.white(index + 1 + '.')} ${truncatedTitle}`);
       

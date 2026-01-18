@@ -288,7 +288,7 @@ export async function summarizeArticle(
         : 'intermediate',
     };
   } catch (error) {
-    console.error('AI summarization failed:', error);
+    console.error('AI summarization failed:', error instanceof Error ? error.message : String(error));
     return getDefaultSummary(title, url);
   }
 }
@@ -405,7 +405,7 @@ export async function classifyContent(
       reasoning: parsed.reasoning || '',
     };
   } catch (error) {
-    console.error('AI classification failed:', error);
+    console.error('AI classification failed:', error instanceof Error ? error.message : String(error));
     return getDefaultClassification(url);
   }
 }

@@ -4,6 +4,7 @@ import { getUnprocessedArticles, getArticlesForReprocess, updateArticle } from '
 import { scrapeUrl, estimateReadingTime } from './scraper.js';
 import { summarizeArticle, serializeSummary } from './ai.js';
 import { loadConfig } from './config.js';
+import { truncate } from './utils.js';
 import type { Article } from './types.js';
 
 export interface ProcessResult {
@@ -111,7 +112,4 @@ function shouldSkip(url: string): boolean {
   return skipPatterns.some(pattern => pattern.test(url));
 }
 
-function truncate(str: string, maxLength: number): string {
-  if (str.length <= maxLength) return str;
-  return str.substring(0, maxLength - 3) + '...';
-}
+
