@@ -23,7 +23,7 @@ process.on('uncaughtException', (error) => {
 program
   .name('linkpress')
   .description('Turn your Slack links into a personal tech magazine')
-  .version('0.2.1');
+  .version('0.2.2');
 
 program.addCommand(initCommand);
 program.addCommand(addCommand);
