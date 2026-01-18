@@ -7,6 +7,11 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/linkpress"><img src="https://img.shields.io/npm/v/linkpress.svg" alt="npm version"></a>
+  <img src="https://img.shields.io/github/license/mindori/linkpress" alt="license">
+</p>
+
+<p align="center">
   <img src="assets/serve.gif" alt="LinkPress Demo" width="800">
 </p>
 
