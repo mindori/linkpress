@@ -53,6 +53,9 @@ function migrateSchema(database: Database.Database): void {
   if (!columnNames.includes('source_label')) {
     database.exec('ALTER TABLE articles ADD COLUMN source_label TEXT');
   }
+  if (!columnNames.includes('read_at')) {
+    database.exec('ALTER TABLE articles ADD COLUMN read_at TEXT');
+  }
 }
 
 export function insertArticle(article: Article): void {
@@ -148,6 +151,25 @@ export function clearAllArticles(): number {
   return count;
 }
 
+export function markAsRead(articleId: string): void {
+  const database = getDb();
+  database.prepare('UPDATE articles SET read_at = ? WHERE id = ?').run(
+    new Date().toISOString(),
+    articleId
+  );
+}
+
+export function markAsUnread(articleId: string): void {
+  const database = getDb();
+  database.prepare('UPDATE articles SET read_at = NULL WHERE id = ?').run(articleId);
+}
+
+export function getArticleById(articleId: string): Article | undefined {
+  const database = getDb();
+  const row = database.prepare('SELECT * FROM articles WHERE id = ?').get(articleId) as Record<string, unknown> | undefined;
+  return row ? rowToArticle(row) : undefined;
+}
+
 function rowToArticle(row: Record<string, unknown>): Article {
   return {
     id: row.id as string,
@@ -165,5 +187,6 @@ function rowToArticle(row: Record<string, unknown>): Article {
     sourceId: row.source_id as string | undefined,
     createdAt: new Date(row.created_at as string),
     processedAt: row.processed_at ? new Date(row.processed_at as string) : undefined,
+    readAt: row.read_at ? new Date(row.read_at as string) : undefined,
   };
 }

@@ -37,7 +37,6 @@ function renderMagazineHtml(articles: Article[]): string {
     month: 'long',
     day: 'numeric'
   });
-  const issueNumber = Math.floor((now.getTime() - new Date('2024-01-01').getTime()) / (7 * 24 * 60 * 60 * 1000));
 
   const tagCounts = new Map<string, number>();
   articles.forEach(a => {
@@ -50,27 +49,31 @@ function renderMagazineHtml(articles: Article[]): string {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8);
 
-  const featuredArticle = articles[0];
-  const remainingArticles = articles.slice(1);
+  const unreadArticles = articles.filter(a => !a.readAt);
+  const readArticles = articles.filter(a => a.readAt);
+  
+  const featuredArticle = unreadArticles[0];
+  const remainingUnread = unreadArticles.slice(1);
 
-  const totalReadingTime = articles.reduce((sum, a) => sum + (a.readingTimeMinutes || 0), 0);
+  const unreadReadingTime = unreadArticles.reduce((sum, a) => sum + (a.readingTimeMinutes || 0), 0);
   const issueStats: IssueStats = {
-    totalArticles: articles.length,
-    totalReadingTime,
+    totalArticles: unreadArticles.length,
+    totalReadingTime: unreadReadingTime,
   };
 
   const featuredHtml = featuredArticle ? renderFeaturedCard(featuredArticle, issueStats) : '';
-  const articleCards = remainingArticles.map((article, idx) => renderArticleCard(article, idx)).join('\n');
+  const unreadCards = remainingUnread.map((article, idx) => renderArticleCard(article, idx)).join('\n');
+  const readCards = readArticles.map((article, idx) => renderArticleCard(article, idx)).join('\n');
   const tagFilters = topTags.map(([tag]) =>
     `<button class="tag-btn" data-tag="${tag}">${tag}</button>`
   ).join('\n');
 
   return `<!DOCTYPE html>
-<html lang="ko" data-theme="dark">
+<html lang="ko" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LinkPress — Issue ${issueNumber}</title>
+  <title>LinkPress — Tech Feed</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
   <style>
@@ -415,7 +418,7 @@ function renderMagazineHtml(articles: Article[]): string {
       letter-spacing: 0.1em;
     }
 
-    /* Filters */
+    /* Filters & Tabs */
     .filters-section {
       padding: 1.5rem 3rem;
       border-bottom: 1px solid var(--border);
@@ -425,12 +428,64 @@ function renderMagazineHtml(articles: Article[]): string {
     .filters-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 1rem;
+    }
+
+    .tab-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .tab-btn {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.6rem 1.2rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border-hover);
+    }
+
+    .tab-btn.active {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .tab-count {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      background: var(--bg-deep);
+      border-radius: 10px;
+      color: var(--text-muted);
+    }
+
+    .tab-btn.active .tab-count {
+      background: rgba(249, 115, 22, 0.2);
+      color: var(--accent);
+    }
+
+    .tag-filters {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
       overflow-x: auto;
       scrollbar-width: none;
     }
 
-    .filters-row::-webkit-scrollbar {
+    .tag-filters::-webkit-scrollbar {
       display: none;
     }
 
@@ -460,6 +515,10 @@ function renderMagazineHtml(articles: Article[]): string {
       background: var(--bg-elevated);
       border-color: var(--accent);
       color: var(--accent);
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     /* Articles Grid - Magazine Style 2-Column Layout */
@@ -792,6 +851,86 @@ function renderMagazineHtml(articles: Article[]): string {
       color: var(--accent);
     }
 
+    .read-toggle-btn {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 2px solid var(--border);
+      background: var(--bg-surface);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      z-index: 2;
+    }
+
+    .read-toggle-btn::after {
+      content: 'Mark as read';
+      position: absolute;
+      left: 100%;
+      margin-left: 8px;
+      padding: 4px 8px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .read-toggle-btn:hover::after {
+      opacity: 1;
+    }
+
+    .read-toggle-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-subtle);
+    }
+
+    .read-toggle-btn svg {
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .read-toggle-btn:hover svg {
+      opacity: 0.6;
+      color: var(--accent);
+    }
+
+    .article-card[data-read="true"] .read-toggle-btn {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .article-card[data-read="true"] .read-toggle-btn::after {
+      content: 'Mark as unread';
+    }
+
+    .article-card[data-read="true"] .read-toggle-btn svg {
+      color: white;
+      opacity: 1;
+    }
+
+    .article-card[data-read="true"] .read-toggle-btn:hover {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+    }
+
+    .article-card[data-read="true"] .read-toggle-btn:hover svg {
+      color: var(--accent);
+    }
+
     /* Footer */
     footer {
       padding: 4rem 3rem;
@@ -1081,7 +1220,6 @@ function renderMagazineHtml(articles: Article[]): string {
     </div>
     <div class="masthead-right">
       <div class="masthead-meta">
-        <div><strong>Issue №${issueNumber}</strong></div>
         <div>${dateStr}</div>
         <div>${articles.length} articles curated</div>
       </div>
@@ -1100,24 +1238,36 @@ function renderMagazineHtml(articles: Article[]): string {
 
   <section class="filters-section">
     <div class="filters-row">
-      <span class="filter-label">Filter by</span>
-      <button class="tag-btn active" data-tag="all">All</button>
-      ${tagFilters}
+      <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="unread">Unread <span class="tab-count" id="unread-count">${unreadArticles.length}</span></button>
+        <button class="tab-btn" data-tab="read">Read <span class="tab-count" id="read-count">${readArticles.length}</span></button>
+      </div>
+      <div class="tag-filters">
+        <span class="filter-label">Filter by</span>
+        <button class="tag-btn active" data-tag="all">All</button>
+        ${tagFilters}
+      </div>
     </div>
   </section>
 
   <main class="articles-section">
     <div class="section-header">
       <h2 class="section-title">Latest Articles</h2>
-      <span class="section-count">${remainingArticles.length} stories</span>
+      <span class="section-count" id="section-count">${remainingUnread.length} stories</span>
     </div>
-    <div class="articles-grid">
-      ${articleCards || `
-        <div class="empty-state">
-          <div class="empty-state-icon">◯</div>
-          <p class="empty-state-text">No articles yet. Run linkpress sync to fetch articles.</p>
-        </div>
-      `}
+    <div class="articles-grid" id="unread-grid">
+      ${unreadCards}
+    </div>
+    <div class="articles-grid hidden" id="read-grid">
+      ${readCards}
+    </div>
+    <div class="empty-state hidden" id="empty-unread">
+      <div class="empty-state-icon">◯</div>
+      <p class="empty-state-text">No unread articles. All caught up!</p>
+    </div>
+    <div class="empty-state hidden" id="empty-read">
+      <div class="empty-state-icon">✓</div>
+      <p class="empty-state-text">No read articles yet.</p>
     </div>
   </main>
 
@@ -1126,32 +1276,107 @@ function renderMagazineHtml(articles: Article[]): string {
       Curated by <a href="https://github.com/mindori/linkpress">LinkPress</a>
     </div>
     <div class="footer-info">
-      ${totalReadingTime} min total reading time
+      <span id="footer-reading-time">${unreadReadingTime}</span> min total reading time
     </div>
   </footer>
 
   <script>
     (function() {
       const html = document.documentElement;
-      const toggle = document.getElementById('theme-toggle');
-      const STORAGE_KEY = 'linkpress-theme';
+      const themeToggle = document.getElementById('theme-toggle');
+      const THEME_KEY = 'linkpress-theme';
 
       function getPreferredTheme() {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = localStorage.getItem(THEME_KEY);
         if (stored) return stored;
-        return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        return 'light';
       }
 
       function setTheme(theme) {
         html.setAttribute('data-theme', theme);
-        localStorage.setItem(STORAGE_KEY, theme);
+        localStorage.setItem(THEME_KEY, theme);
       }
 
       setTheme(getPreferredTheme());
 
-      toggle.addEventListener('click', () => {
-        const current = html.getAttribute('data-theme') || 'dark';
+      themeToggle.addEventListener('click', () => {
+        const current = html.getAttribute('data-theme') || 'light';
         setTheme(current === 'dark' ? 'light' : 'dark');
+      });
+
+      let currentTab = 'unread';
+      const unreadGrid = document.getElementById('unread-grid');
+      const readGrid = document.getElementById('read-grid');
+      const emptyUnread = document.getElementById('empty-unread');
+      const emptyRead = document.getElementById('empty-read');
+      const unreadCountEl = document.getElementById('unread-count');
+      const readCountEl = document.getElementById('read-count');
+      const sectionCount = document.getElementById('section-count');
+      const footerReadingTime = document.getElementById('footer-reading-time');
+      const statsArticles = document.querySelector('.stat-number');
+      const statsMinutes = document.querySelectorAll('.stat-number')[1];
+
+      function updateEmptyStates() {
+        const unreadCards = unreadGrid.querySelectorAll('.article-card');
+        const readCards = readGrid.querySelectorAll('.article-card');
+
+        if (currentTab === 'unread') {
+          emptyUnread.classList.toggle('hidden', unreadCards.length > 0);
+          emptyRead.classList.add('hidden');
+        } else {
+          emptyRead.classList.toggle('hidden', readCards.length > 0);
+          emptyUnread.classList.add('hidden');
+        }
+      }
+
+      function updateStats() {
+        const unreadCards = unreadGrid.querySelectorAll('.article-card');
+        const readCards = readGrid.querySelectorAll('.article-card');
+        
+        let unreadTime = 0;
+        unreadCards.forEach(card => {
+          unreadTime += parseInt(card.dataset.readingTime) || 0;
+        });
+
+        const featuredTime = parseInt(document.querySelector('.hero')?.dataset?.readingTime) || 0;
+        const totalUnread = unreadCards.length + (document.querySelector('.hero[data-read="false"]') ? 1 : 0);
+        const totalUnreadTime = unreadTime + featuredTime;
+
+        unreadCountEl.textContent = unreadCards.length;
+        readCountEl.textContent = readCards.length;
+        
+        if (currentTab === 'unread') {
+          sectionCount.textContent = unreadCards.length + ' stories';
+        } else {
+          sectionCount.textContent = readCards.length + ' stories';
+        }
+
+        footerReadingTime.textContent = totalUnreadTime;
+        if (statsArticles) statsArticles.textContent = totalUnread;
+        if (statsMinutes) statsMinutes.textContent = totalUnreadTime;
+
+        updateEmptyStates();
+      }
+
+      function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+
+        if (tab === 'unread') {
+          unreadGrid.classList.remove('hidden');
+          readGrid.classList.add('hidden');
+        } else {
+          unreadGrid.classList.add('hidden');
+          readGrid.classList.remove('hidden');
+        }
+
+        updateStats();
+      }
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
       });
 
       document.querySelectorAll('.tag-btn').forEach(btn => {
@@ -1160,13 +1385,48 @@ function renderMagazineHtml(articles: Article[]): string {
           btn.classList.add('active');
 
           const tag = btn.dataset.tag;
-          document.querySelectorAll('.article-card').forEach(card => {
+          const grid = currentTab === 'unread' ? unreadGrid : readGrid;
+          grid.querySelectorAll('.article-card').forEach(card => {
             if (tag === 'all' || card.dataset.tags.includes(tag)) {
               card.style.display = 'flex';
             } else {
               card.style.display = 'none';
             }
           });
+        });
+      });
+
+      async function toggleRead(card) {
+        const id = card.dataset.id;
+        const isRead = card.dataset.read === 'true';
+        const method = isRead ? 'DELETE' : 'POST';
+
+        try {
+          const res = await fetch('/api/articles/' + id + '/read', { method });
+          if (!res.ok) throw new Error('API error');
+
+          card.dataset.read = isRead ? 'false' : 'true';
+          
+          if (isRead) {
+            readGrid.removeChild(card);
+            unreadGrid.appendChild(card);
+          } else {
+            unreadGrid.removeChild(card);
+            readGrid.appendChild(card);
+          }
+
+          updateStats();
+        } catch (err) {
+          console.error('Failed to toggle read status:', err);
+        }
+      }
+
+      document.querySelectorAll('.read-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const card = btn.closest('.article-card');
+          toggleRead(card);
         });
       });
     })();
@@ -1195,8 +1455,11 @@ function renderFeaturedCard(article: Article, stats: IssueStats): string {
   const tldr = summary?.tldr || article.description || '';
   const tags = article.tags.slice(0, 3);
 
+  const isRead = !!article.readAt;
+  const readingTime = article.readingTimeMinutes || 0;
+
   return `
-    <section class="hero">
+    <section class="hero" data-read="${isRead}" data-reading-time="${readingTime}">
       <div class="hero-main">
         <div class="hero-content">
           <h2 class="hero-headline">
@@ -1206,7 +1469,7 @@ function renderFeaturedCard(article: Article, stats: IssueStats): string {
         </div>
         <div class="hero-footer">
           <div class="hero-meta">
-            <span>${escapeHtml(hostname)}</span> · ${article.readingTimeMinutes || '?'} min read
+            <span>${escapeHtml(hostname)}</span> · ${readingTime || '?'} min read
           </div>
           <div class="hero-tags">
             ${tags.map(tag => `<span class="hero-tag">${escapeHtml(tag)}</span>`).join('')}
@@ -1276,13 +1539,21 @@ function renderArticleCard(article: Article, index: number): string {
     <div class="article-quote">"${escapeHtml(keyQuote)}"</div>
   ` : '';
 
+  const isRead = !!article.readAt;
+  const readingTime = article.readingTimeMinutes || 0;
+
   return `
-    <article class="article-card ${article.image ? 'has-image' : ''}" data-tags="${article.tags.join(',')}" data-index="${formattedIndex}">
+    <article class="article-card ${article.image ? 'has-image' : ''}" data-tags="${article.tags.join(',')}" data-index="${formattedIndex}" data-id="${article.id}" data-read="${isRead}" data-reading-time="${readingTime}">
+      <button class="read-toggle-btn" aria-label="Mark as ${isRead ? 'unread' : 'read'}">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </button>
       ${imageHtml}
       <div class="article-content">
         <div class="article-meta-row">
           <span class="article-difficulty ${difficultyClass}">${difficultyLabel}</span>
-          <span class="article-reading-time">${article.readingTimeMinutes || '?'} min read</span>
+          <span class="article-reading-time">${readingTime || '?'} min read</span>
         </div>
 
         <h3 class="article-headline">

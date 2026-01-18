@@ -14,6 +14,7 @@ export interface Article {
   sourceId?: string;
   createdAt: Date;
   processedAt?: Date;
+  readAt?: Date;
 }
 
 export interface SlackSource {

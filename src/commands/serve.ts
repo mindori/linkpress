@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import open from 'open';
 import { loadConfig } from '../config.js';
+import { markAsRead, markAsUnread, getArticleById } from '../db.js';
 
 export const serveCommand = new Command('serve')
   .description('Start local server to view magazine')
@@ -33,7 +34,30 @@ export const serveCommand = new Command('serve')
     const app = express();
     const port = parseInt(options.port, 10);
 
+    app.use(express.json());
     app.use(express.static(outputDir));
+
+    app.post('/api/articles/:id/read', (req, res) => {
+      const { id } = req.params;
+      const article = getArticleById(id);
+      if (!article) {
+        res.status(404).json({ error: 'Article not found' });
+        return;
+      }
+      markAsRead(id);
+      res.json({ success: true, readAt: new Date().toISOString() });
+    });
+
+    app.delete('/api/articles/:id/read', (req, res) => {
+      const { id } = req.params;
+      const article = getArticleById(id);
+      if (!article) {
+        res.status(404).json({ error: 'Article not found' });
+        return;
+      }
+      markAsUnread(id);
+      res.json({ success: true, readAt: null });
+    });
 
     app.get('*', (_req, res) => {
       res.sendFile(indexPath);
