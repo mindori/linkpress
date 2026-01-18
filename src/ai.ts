@@ -165,6 +165,10 @@ export function parseSummary(summaryStr: string | undefined): ArticleSummary | n
 }
 
 function buildPrompt(title: string, content: string, url: string, language: string): string {
+  const koreanRule = language === '한국어' 
+    ? '\n6. KOREAN ONLY: Use formal polite speech (존댓말/합쇼체) consistently. End sentences with -습니다, -입니다, -됩니다. NEVER use casual speech (반말).'
+    : '';
+
   return `You are a SENIOR TECH JOURNALIST at a prestigious developer magazine.
 Your job is to create compelling, newspaper-style briefings that developers actually want to read.
 
@@ -200,7 +204,7 @@ CRITICAL RULES:
 2. Headline should be ATTENTION-GRABBING but accurate—no clickbait lies.
 3. Key points should be ACTIONABLE insights, not just descriptions.
 4. Tags: use technical topics (frontend, backend, ai, devops, database, security, career, etc.)
-5. Difficulty: beginner (anyone can understand), intermediate (some experience needed), advanced (experts only)
+5. Difficulty: beginner (anyone can understand), intermediate (some experience needed), advanced (experts only)${koreanRule}
 
 OUTPUT: JSON only, no explanation outside JSON.`;
 }
