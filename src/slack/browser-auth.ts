@@ -112,23 +112,31 @@ async function extractTokensFromPage(page: Page, context: BrowserContext): Promi
   try {
     debug('Extracting tokens from page...', page.url());
 
-    const extractionResult = await page.evaluate(() => {
+    const currentUrl = page.url();
+    const extractionResult = await page.evaluate((url) => {
       const results: { 
         bootData: string | null;
         localConfig: string | null;
         redux: string | null;
         allLocalStorageKeys: string[];
+        currentTeamId: string | null;
       } = {
         bootData: null,
         localConfig: null,
         redux: null,
         allLocalStorageKeys: Object.keys(localStorage),
+        currentTeamId: null,
       };
 
-      const w = globalThis as unknown as { boot_data?: { api_token?: string } };
+      const teamMatch = url.match(/app\.slack\.com\/client\/([A-Z0-9]+)/);
+      results.currentTeamId = teamMatch ? teamMatch[1] : null;
+
+      const w = globalThis as unknown as { boot_data?: { api_token?: string; team_id?: string } };
       try {
         if (w.boot_data?.api_token) {
-          results.bootData = w.boot_data.api_token;
+          if (!results.currentTeamId || w.boot_data.team_id === results.currentTeamId) {
+            results.bootData = w.boot_data.api_token;
+          }
         }
       } catch {}
 
@@ -138,12 +146,16 @@ async function extractTokensFromPage(page: Page, context: BrowserContext): Promi
           const parsed = JSON.parse(localConfig);
           const teams = parsed?.teams;
           if (teams) {
-            const teamIds = Object.keys(teams);
-            for (const teamId of teamIds) {
-              const teamToken = teams[teamId]?.token;
-              if (teamToken && teamToken.startsWith('xoxc-')) {
-                results.localConfig = teamToken;
-                break;
+            if (results.currentTeamId && teams[results.currentTeamId]?.token?.startsWith('xoxc-')) {
+              results.localConfig = teams[results.currentTeamId].token;
+            } else {
+              const teamIds = Object.keys(teams);
+              for (const teamId of teamIds) {
+                const teamToken = teams[teamId]?.token;
+                if (teamToken && teamToken.startsWith('xoxc-')) {
+                  results.localConfig = teamToken;
+                  break;
+                }
               }
             }
           }
@@ -154,17 +166,21 @@ async function extractTokensFromPage(page: Page, context: BrowserContext): Promi
         const redux = localStorage.getItem('reduxPersist:teams');
         if (redux) {
           const parsed = JSON.parse(redux);
-          for (const team of Object.values(parsed) as Array<{ token?: string }>) {
-            if (team?.token?.startsWith('xoxc-')) {
-              results.redux = team.token;
-              break;
+          if (results.currentTeamId && parsed[results.currentTeamId]?.token?.startsWith('xoxc-')) {
+            results.redux = parsed[results.currentTeamId].token;
+          } else {
+            for (const team of Object.values(parsed) as Array<{ token?: string }>) {
+              if (team?.token?.startsWith('xoxc-')) {
+                results.redux = team.token;
+                break;
+              }
             }
           }
         }
       } catch {}
 
       return results;
-    });
+    }, currentUrl);
 
     debug('Extraction results', {
       bootData: extractionResult.bootData ? extractionResult.bootData.substring(0, 20) + '...' : null,

@@ -9,6 +9,7 @@ export interface SlackUser {
   id: string;
   name: string;
   realName: string;
+  team: string;
 }
 
 export interface SlackConversation {
@@ -65,6 +66,7 @@ export class SlackClient {
       id: response.user_id,
       name: response.user,
       realName: response.user,
+      team: response.team,
     };
   }
 

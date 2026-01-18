@@ -113,7 +113,7 @@ async function connectWithTokens(token: string, cookie: string): Promise<void> {
           label = `# ${c.name}`;
         }
         return {
-          name: label,
+          name: `(${user.team}) ${label}`,
           value: c.id,
           checked: c.isIm && c.user === user.id,
         };
@@ -168,7 +168,7 @@ async function connectWithTokens(token: string, cookie: string): Promise<void> {
 
     const source: SlackSource = {
       id: client.generateSourceId(),
-      workspace: user.name,
+      workspace: user.team,
       token,
       cookie,
       channels,
@@ -295,7 +295,7 @@ export async function addChannelToSource(): Promise<void> {
       } else {
         label = `# ${c.name}`;
       }
-      return { name: label, value: c.id, conversation: c };
+      return { name: `(${selectedSource.workspace}) ${label}`, value: c.id, conversation: c };
     });
 
     const { searchTerm } = await inquirer.prompt([{
