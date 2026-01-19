@@ -2,14 +2,14 @@
 
 import { program } from 'commander';
 import {
-  initCommand,
   addCommand,
+  clearCommand,
+  generateCommand,
+  initCommand,
   listCommand,
+  serveCommand,
   sourceCommand,
   syncCommand,
-  generateCommand,
-  serveCommand,
-  clearCommand,
 } from './commands/index.js';
 
 process.on('uncaughtException', (error) => {
@@ -23,7 +23,7 @@ process.on('uncaughtException', (error) => {
 program
   .name('linkpress')
   .description('Turn your Slack links into a personal tech magazine')
-  .version('0.2.2');
+  .version('0.2.3');
 
 program.addCommand(initCommand);
 program.addCommand(addCommand);
