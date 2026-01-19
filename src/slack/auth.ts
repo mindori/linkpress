@@ -166,24 +166,38 @@ async function connectWithTokens(token: string, cookie: string): Promise<void> {
       config.sources.slack = [];
     }
 
-    const source: SlackSource = {
-      id: client.generateSourceId(),
-      workspace: user.team,
-      token,
-      cookie,
-      channels,
-      addedAt: new Date(),
-    };
+    const existingIndex = config.sources.slack.findIndex(
+      s => s.workspace === user.team
+    );
 
-    config.sources.slack.push(source);
-    saveConfig(config);
+    if (existingIndex !== -1) {
+      config.sources.slack[existingIndex].token = token;
+      config.sources.slack[existingIndex].cookie = cookie;
+      saveConfig(config);
 
-    console.log(chalk.green('\n✅ Slack workspace added successfully!'));
-    console.log(chalk.dim('\nWatching channels:'));
-    channels.forEach(ch => {
-      console.log(chalk.dim(`  • ${ch.name}`));
-    });
-    console.log(chalk.dim('\nRun "linkpress sync" to fetch links from Slack.'));
+      console.log(chalk.green('\n✅ Slack workspace token updated!'));
+      console.log(chalk.dim(`Workspace: ${user.team}`));
+      console.log(chalk.dim('\nExisting channels preserved. Run "linkpress sync" to fetch links.'));
+    } else {
+      const source: SlackSource = {
+        id: client.generateSourceId(),
+        workspace: user.team,
+        token,
+        cookie,
+        channels,
+        addedAt: new Date(),
+      };
+
+      config.sources.slack.push(source);
+      saveConfig(config);
+
+      console.log(chalk.green('\n✅ Slack workspace added successfully!'));
+      console.log(chalk.dim('\nWatching channels:'));
+      channels.forEach(ch => {
+        console.log(chalk.dim(`  • ${ch.name}`));
+      });
+      console.log(chalk.dim('\nRun "linkpress sync" to fetch links from Slack.'));
+    }
 
   } catch (error) {
     spinner.fail(chalk.red('Connection failed'));
