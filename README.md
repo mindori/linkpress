@@ -8,7 +8,10 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/linkpress"><img src="https://img.shields.io/npm/v/linkpress.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/linkpress"><img src="https://img.shields.io/npm/dm/linkpress.svg" alt="npm downloads"></a>
   <img src="https://img.shields.io/github/license/mindori/linkpress" alt="license">
+  <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version">
+  <img src="https://img.shields.io/badge/AI-Claude-blueviolet" alt="AI powered by Claude">
 </p>
 
 <p align="center">
