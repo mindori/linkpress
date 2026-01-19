@@ -111,6 +111,8 @@ linkpress serve
   <img src="assets/generate.gif" alt="Generate Magazine" width="800">
 </p>
 
+> **Note:** Some websites with bot detection may fail to scrape (HTTP 403). These articles will be skipped during processing, but you can still access them via the original URL.
+
 
 ## Features
 
