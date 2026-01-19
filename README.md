@@ -75,9 +75,13 @@ linkpress source add slack
 > you can select **Manual** mode and paste tokens from your browser's DevTools. 
 > The CLI will guide you through the process.
 
-Select the channels you want to watch. LinkPress will collect all shared links from these channels.
+Select the channels you want to watch with real-time autocomplete. Your **Saved Messages** is auto-added by default. Type to search, enter to select, and pick "Done" when finished.
 
-> **💡 Tip:** Just press Enter without selecting anything — your **Saved Messages (DM to self)** is pre-selected by default. This is the easiest way to curate links: just forward interesting articles to yourself in Slack!
+<p align="center">
+  <img src="assets/select.gif" alt="Channel Selection" width="800">
+</p>
+
+> **💡 Tip:** Saved Messages is the easiest way to curate links — just forward interesting articles to yourself in Slack!
 
 
 ## Step 2: Sync Links
@@ -94,6 +98,7 @@ linkpress sync
 
 
 ## Step 3: Generate Magazine
+> **⚠️ Important:** Slack tokens expire periodically. If you see `invalid_auth` errors during sync, re-run `linkpress source add slack` to refresh your token.
 
 Process articles with AI and generate your personal magazine. Each article gets:
 - Catchy headline
@@ -116,11 +121,10 @@ linkpress serve
 
 ## Features
 
-### 🤖 Multi-Provider AI
-Choose your preferred AI provider:
-- **Anthropic** (Claude)
-- **OpenAI** (GPT)
-- **Google** (Gemini)
+### 🤖 AI-Powered
+- **Anthropic** (Claude) - Currently supported
+- **OpenAI** (GPT) - Coming soon
+- **Google** (Gemini) - Coming soon
 
 ### 📊 Smart Classification
 Articles are automatically tagged and classified by:

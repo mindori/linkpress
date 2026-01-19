@@ -8,8 +8,9 @@ import type { AIProvider } from '../types.js';
 
 const PROVIDER_CHOICES = [
   { name: 'Anthropic (Claude)', value: 'anthropic' },
-  { name: 'OpenAI (GPT)', value: 'openai' },
-  { name: 'Google (Gemini)', value: 'gemini' },
+  // OpenAI and Gemini temporarily disabled - JSON output inconsistent
+  // { name: 'OpenAI (GPT)', value: 'openai' },
+  // { name: 'Google (Gemini)', value: 'gemini' },
 ];
 
 const LANGUAGE_CHOICES = [

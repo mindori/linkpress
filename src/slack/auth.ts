@@ -1,4 +1,5 @@
 import inquirer from 'inquirer';
+import { search, Separator } from '@inquirer/prompts';
 import chalk from 'chalk';
 import ora from 'ora';
 import { SlackClient } from './client.js';
@@ -99,7 +100,7 @@ async function connectWithTokens(token: string, cookie: string): Promise<void> {
     const conversations = await client.getConversations();
     spinner.succeed(`Found ${conversations.length} conversations`);
 
-    const choices = conversations
+    const allChoices = conversations
       .filter(c => !c.isIm || c.user === user.id)
       .map(c => {
         let label = c.name;
@@ -113,28 +114,85 @@ async function connectWithTokens(token: string, cookie: string): Promise<void> {
           label = `# ${c.name}`;
         }
         return {
-          name: `(${user.team}) ${label}`,
+          name: label,
           value: c.id,
-          checked: c.isIm && c.user === user.id,
+          isSelfDM: c.isIm && c.user === user.id,
         };
       });
 
-    const { selectedChannels } = await inquirer.prompt([{
-      type: 'checkbox',
-      name: 'selectedChannels',
-      message: 'Select channels to watch (space to select):',
-      choices,
-      pageSize: 15,
-      validate: (answer: string[]) => {
-        if (answer.length === 0) {
-          return 'Select at least one channel';
+    const selectedChannelIds: string[] = [];
+    const DONE_VALUE = '__DONE__';
+
+    const selfDM = allChoices.find(c => c.isSelfDM);
+    if (selfDM) {
+      selectedChannelIds.push(selfDM.value);
+      console.log(chalk.green(`\n✓ Auto-added: ${selfDM.name}`));
+    }
+
+    console.log(chalk.dim(`Type to search, Enter to select, select "✅ Done" to finish.\n`));
+
+    while (true) {
+      const availableChoices = allChoices.filter(c => !selectedChannelIds.includes(c.value));
+      const selectedCount = selectedChannelIds.length;
+
+      if (availableChoices.length === 0) {
+        console.log(chalk.yellow('\nAll channels selected.'));
+        break;
+      }
+
+      const statusMsg = selectedCount > 0
+        ? `Add channel (${selectedCount} selected)`
+        : 'Add channel (type to search)';
+
+      try {
+        const selected = await search({
+          message: statusMsg,
+          source: async (term) => {
+            const filtered = term
+              ? availableChoices.filter(c => c.name.toLowerCase().includes(term.toLowerCase()))
+              : availableChoices.slice(0, 20);
+
+            const results: Array<{ name: string; value: string; description?: string }> = [];
+
+            if (selectedCount > 0) {
+              results.push({
+                name: `✅ Done (${selectedCount} selected)`,
+                value: DONE_VALUE,
+                description: 'Finish selecting channels',
+              });
+            }
+
+            results.push(...filtered.slice(0, 30).map(c => ({
+              name: c.name,
+              value: c.value,
+            })));
+
+            return results;
+          },
+          pageSize: 15,
+        });
+
+        if (selected === DONE_VALUE) {
+          break;
         }
-        return true;
-      },
-    }]);
+
+        const choice = allChoices.find(c => c.value === selected);
+        if (choice) {
+          selectedChannelIds.push(selected);
+          console.log(chalk.green(`✓ Added: ${choice.name} (${selectedChannelIds.length} total)`));
+        }
+      } catch {
+        break;
+      }
+    }
+
+    if (selectedChannelIds.length === 0) {
+      console.log(chalk.yellow('\nNo channels selected. Aborting.'));
+      return;
+    }
 
     const selectedConversations = conversations.filter(c =>
-      selectedChannels.includes(c.id)
+      selectedChannelIds.includes(c.id)
     );
 
     const channels: SlackChannel[] = await Promise.all(
