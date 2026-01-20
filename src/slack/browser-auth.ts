@@ -56,7 +56,7 @@ export async function extractSlackTokens(): Promise<SlackTokens | null> {
     console.log(chalk.yellow('   Warning: Could not find Chrome. Using Playwright Chromium.\n'));
   }
 
-  const userDataDir = path.join(os.tmpdir(), 'linkpress-chrome-profile');
+  const userDataDir = path.join(os.tmpdir(), `linkpress-chrome-${Date.now()}`);
   debug('User data dir', userDataDir);
 
   const context = await chromium.launchPersistentContext(userDataDir, {

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Turn your Slack links into a personal tech magazine</strong>
+  <strong>Turn your Slack links into a personal tech magazine!</strong>
 </p>
 
 <p align="center">
@@ -60,7 +60,9 @@ linkpress serve
 
 ## Step 1: Connect Slack
 
-Connect your Slack workspace with automatic token extraction. No OAuth app needed — just log in.
+Connect your Slack workspace with automatic token extraction. Just log in and we'll handle the rest.
+
+> **🚀 Coming Soon:** LinkPress SaaS will support **Slack OAuth** for one-click workspace connection — no manual login required.
 
 ```bash
 linkpress source add slack
