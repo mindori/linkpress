@@ -1,7 +1,3 @@
-<p align="right">
-  <a href="README.md">English</a> | 한국어
-</p>
-
 <p align="center">
   <img src="assets/FullLogo_Transparent.png" alt="LinkPress" width="400">
 </p>
@@ -11,8 +7,15 @@
 </p>
 
 <p align="center">
+  <a href="#빠른-시작">빠른 시작</a> · <a href="#기능">기능</a> · <a href="#명령어">명령어</a>
+</p>
+
+<p align="center">
+  <a href="README.md">English</a>
+</p>
+
+<p align="center">
   <a href="https://www.npmjs.com/package/linkpress"><img src="https://img.shields.io/npm/v/linkpress.svg" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/linkpress"><img src="https://img.shields.io/npm/dm/linkpress.svg" alt="npm downloads"></a>
   <img src="https://img.shields.io/github/license/mindori/linkpress" alt="license">
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version">
   <img src="https://img.shields.io/badge/AI-Claude-blueviolet" alt="AI powered by Claude">
@@ -21,6 +24,7 @@
 <p align="center">
   <img src="assets/serve.gif" alt="LinkPress Demo" width="800">
 </p>
+
 
 ---
 
@@ -212,4 +216,4 @@ output:
 
 ## 저자
 
-[강창민 (Chris)](https://github.com/mindori)
+[Changmin (Chris) Kang](https://github.com/mindori)
