@@ -1,3 +1,7 @@
+<p align="right">
+  English | <a href="README.ko.md">한국어</a>
+</p>
+
 <p align="center">
   <img src="assets/FullLogo_Transparent.png" alt="LinkPress" width="400">
 </p>
