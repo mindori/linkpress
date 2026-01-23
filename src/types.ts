@@ -29,6 +29,9 @@ export interface Config {
     directory: string;
     format: 'html' | 'markdown' | 'both';
   };
+  filter?: {
+    skipOutdated?: boolean;
+  };
 }
 
 export interface Magazine {

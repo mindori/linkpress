@@ -137,6 +137,15 @@ export const initCommand = new Command('init')
     }]);
     
     config.output.format = outputFormat;
+
+    const { skipOutdated } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'skipOutdated',
+      message: 'Filter out deprecated/outdated content? (experimental)',
+      default: config.filter?.skipOutdated ?? false,
+    }]);
+
+    config.filter = { skipOutdated };
     
     saveConfig(config);
     
@@ -144,6 +153,7 @@ export const initCommand = new Command('init')
     console.log(chalk.dim(`   Provider: ${providerName}`));
     console.log(chalk.dim(`   Model: ${finalModel}`));
     console.log(chalk.dim(`   Language: ${finalLanguage}`));
+    console.log(chalk.dim(`   Outdated filter: ${skipOutdated ? 'enabled' : 'disabled'}`));
     
     console.log(chalk.dim('\nNext steps:'));
     console.log(chalk.dim('  1. Add a Slack source:'), chalk.white('linkpress source add slack'));

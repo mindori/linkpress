@@ -34,6 +34,9 @@ export function getDefaultConfig(): Config {
       directory: path.join(CONFIG_DIR, 'output'),
       format: 'html',
     },
+    filter: {
+      skipOutdated: false,
+    },
   };
 }
 

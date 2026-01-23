@@ -56,6 +56,15 @@ function migrateSchema(database: Database.Database): void {
   if (!columnNames.includes('read_at')) {
     database.exec('ALTER TABLE articles ADD COLUMN read_at TEXT');
   }
+  if (!columnNames.includes('is_outdated')) {
+    database.exec('ALTER TABLE articles ADD COLUMN is_outdated INTEGER DEFAULT 0');
+  }
+  if (!columnNames.includes('outdated_reason')) {
+    database.exec('ALTER TABLE articles ADD COLUMN outdated_reason TEXT');
+  }
+  if (!columnNames.includes('published_at')) {
+    database.exec('ALTER TABLE articles ADD COLUMN published_at TEXT');
+  }
 }
 
 export function insertArticle(article: Article): void {
@@ -118,7 +127,7 @@ export function updateArticle(article: Article): void {
     UPDATE articles SET
       title = ?, description = ?, content = ?, summary = ?,
       tags = ?, difficulty = ?, reading_time_minutes = ?,
-      image = ?, source_label = ?, processed_at = ?
+      image = ?, source_label = ?, processed_at = ?, published_at = ?
     WHERE id = ?
   `);
   
@@ -133,6 +142,7 @@ export function updateArticle(article: Article): void {
     article.image ?? null,
     article.sourceLabel ?? null,
     article.processedAt?.toISOString() ?? null,
+    article.publishedAt?.toISOString() ?? null,
     article.id
   );
 }
@@ -141,6 +151,27 @@ export function articleExists(url: string): boolean {
   const database = getDb();
   const row = database.prepare('SELECT 1 FROM articles WHERE url = ?').get(url);
   return !!row;
+}
+
+export function getExistingUrls(urls: string[]): Set<string> {
+  if (urls.length === 0) return new Set();
+  
+  const database = getDb();
+  const placeholders = urls.map(() => '?').join(',');
+  const rows = database.prepare(
+    `SELECT url FROM articles WHERE url IN (${placeholders})`
+  ).all(...urls) as { url: string }[];
+  
+  return new Set(rows.map(r => r.url));
+}
+
+export function getProcessedArticles(limit = 100): Article[] {
+  const database = getDb();
+  const rows = database.prepare(`
+    SELECT * FROM articles WHERE processed_at IS NOT NULL ORDER BY created_at DESC LIMIT ?
+  `).all(limit) as Record<string, unknown>[];
+  
+  return rows.map(rowToArticle);
 }
 
 export function clearAllArticles(): number {
@@ -188,5 +219,6 @@ function rowToArticle(row: Record<string, unknown>): Article {
     createdAt: new Date(row.created_at as string),
     processedAt: row.processed_at ? new Date(row.processed_at as string) : undefined,
     readAt: row.read_at ? new Date(row.read_at as string) : undefined,
+    publishedAt: row.published_at ? new Date(row.published_at as string) : undefined,
   };
 }

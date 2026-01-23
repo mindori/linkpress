@@ -15,7 +15,7 @@ import { loadConfig } from './config.js';
 export { serializeSummary, parseSummary, fetchModels, FALLBACK_MODELS };
 export type { ArticleSummary, ContentClassification, ModelInfo };
 
-function getAIConfig(): AIConfig {
+export function getAIConfig(): AIConfig {
   const config = loadConfig();
   return {
     provider: config.ai.provider,

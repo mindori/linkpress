@@ -3,10 +3,12 @@ import ora from 'ora';
 import crypto from 'crypto';
 import { SlackClient, extractLinksFromMessages } from '@linkpress/core';
 import { loadConfig } from '../config.js';
-import { insertArticle, articleExists } from '../db.js';
+import { insertArticle, getExistingUrls } from '../db.js';
 import { classifyContent } from '../ai.js';
 import { t } from '../i18n.js';
-import type { Article } from '../types.js';
+import type { Article, ExtractedLink } from '../types.js';
+
+const AI_BATCH_SIZE = 5;
 
 export interface SyncResult {
   total: number;
@@ -53,57 +55,68 @@ export async function syncSlackSources(config?: ReturnType<typeof loadConfig>, o
 
         totalUrls += uniqueLinks.length;
 
+        const allUrls = uniqueLinks.map(l => l.url);
+        const existingUrls = getExistingUrls(allUrls);
+
+        const newLinks = uniqueLinks.filter(l => !existingUrls.has(l.url));
+        const channelSkipped = uniqueLinks.length - newLinks.length;
+        skipped += channelSkipped;
+
         let channelNew = 0;
-        let channelSkipped = 0;
         let channelFiltered = 0;
 
-        let processed = 0;
-
-        for (const link of uniqueLinks) {
-          processed++;
+        for (let i = 0; i < newLinks.length; i += AI_BATCH_SIZE) {
+          const batch = newLinks.slice(i, i + AI_BATCH_SIZE);
+          
           if (spinner) {
             spinner.text = t('sync.classifying', {
               channel: channel.name,
-              current: processed,
-              total: uniqueLinks.length
+              current: Math.min(i + AI_BATCH_SIZE, newLinks.length),
+              total: newLinks.length
             });
           }
-          if (articleExists(link.url)) {
-            channelSkipped++;
-            skipped++;
-            continue;
-          }
 
-          const classification = await classifyContent(
-            link.messageText,
-            link.url,
-            '',
-            ''
+          const classificationResults = await Promise.all(
+            batch.map(async (link): Promise<{ link: ExtractedLink; shouldCollect: boolean; reasoning: string }> => {
+              try {
+                const classification = await classifyContent(
+                  link.messageText,
+                  link.url,
+                  '',
+                  ''
+                );
+                return { link, shouldCollect: classification.shouldCollect, reasoning: classification.reasoning };
+              } catch {
+                return { link, shouldCollect: false, reasoning: 'Classification failed' };
+              }
+            })
           );
 
-          if (!classification.shouldCollect) {
-            channelFiltered++;
-            filtered++;
-            if (!silent) {
-              console.log(chalk.dim(`     ✗ ${link.url}`));
-              console.log(chalk.dim(`       → ${classification.reasoning}`));
+          for (const result of classificationResults) {
+            if (!result.shouldCollect) {
+              channelFiltered++;
+              filtered++;
+              if (!silent) {
+                console.log(chalk.dim(`     ✗ ${result.link.url}`));
+                console.log(chalk.dim(`       → ${result.reasoning}`));
+              }
+              continue;
             }
-            continue;
+
+            const article: Article = {
+              id: crypto.randomUUID(),
+              url: result.link.url,
+              title: result.link.url,
+              tags: [],
+              sourceType: 'slack',
+              sourceId: channel.id,
+              createdAt: result.link.timestamp,
+            };
+
+            insertArticle(article);
+            channelNew++;
+            newArticles++;
           }
-
-          const article: Article = {
-            id: crypto.randomUUID(),
-            url: link.url,
-            title: link.url,
-            tags: [],
-            sourceType: 'slack',
-            sourceId: channel.id,
-            createdAt: new Date(),
-          };
-
-          insertArticle(article);
-          channelNew++;
-          newArticles++;
         }
 
         spinner?.succeed(

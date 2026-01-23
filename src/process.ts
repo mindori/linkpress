@@ -11,6 +11,7 @@ export interface ProcessResult {
   processed: number;
   failed: number;
   skipped: number;
+  outdated: number;
 }
 
 export interface ProcessOptions {
@@ -65,6 +66,11 @@ export async function processArticles(options: ProcessOptions = {}): Promise<Pro
       }
 
       const scraped = await scrapeUrl(article.url);
+
+      if (config.filter?.skipOutdated && scraped.isOutdated) {
+        spinner?.warn(chalk.yellow(`Outdated: ${scraped.outdatedReason || 'Content marked as deprecated'}\n   ${chalk.dim(article.url)}`));
+        continue;
+      }
       
       const summaryData = await summarizeArticle(
         scraped.title || article.title,
@@ -84,11 +90,12 @@ export async function processArticles(options: ProcessOptions = {}): Promise<Pro
         image: scraped.image,
         sourceLabel: scraped.sourceLabel,
         processedAt: new Date(),
+        publishedAt: scraped.publishedAt ? new Date(scraped.publishedAt) : undefined,
         isNew: true,
       };
 
       updateArticle(updatedArticle);
-      spinner?.succeed(chalk.green(truncate(summaryData.headline || scraped.title || article.url, 60)));
+      spinner?.succeed(chalk.green(`Valid: ${truncate(summaryData.headline || scraped.title || article.url, 50)}\n   ${chalk.dim(article.url)}`));
       processedArticles.push(updatedArticle);
 
       await new Promise(resolve => setTimeout(resolve, 300));

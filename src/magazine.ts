@@ -30,7 +30,20 @@ export function generateMagazine(options: MagazineOptions = {}): string {
   return outputPath;
 }
 
+const DIFFICULTY_LABELS: Record<string, Record<string, string>> = {
+  '한국어': { beginner: '입문', intermediate: '중급', advanced: '심화' },
+  'default': { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' },
+};
+
+function getDifficultyLabel(difficulty: string, language: string): string {
+  const labels = DIFFICULTY_LABELS[language] || DIFFICULTY_LABELS['default'];
+  return labels[difficulty] || labels['intermediate'];
+}
+
 function renderMagazineHtml(articles: Article[]): string {
+  const config = loadConfig();
+  const language = config.ai?.language || 'English';
+  
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', {
     year: 'numeric',
@@ -61,9 +74,9 @@ function renderMagazineHtml(articles: Article[]): string {
     totalReadingTime: unreadReadingTime,
   };
 
-  const featuredHtml = featuredArticle ? renderFeaturedCard(featuredArticle, issueStats) : '';
-  const unreadCards = remainingUnread.map((article, idx) => renderArticleCard(article, idx)).join('\n');
-  const readCards = readArticles.map((article, idx) => renderArticleCard(article, idx)).join('\n');
+  const featuredHtml = featuredArticle ? renderFeaturedCard(featuredArticle, issueStats, language) : '';
+  const unreadCards = remainingUnread.map((article, idx) => renderArticleCard(article, idx, language)).join('\n');
+  const readCards = readArticles.map((article, idx) => renderArticleCard(article, idx, language)).join('\n');
   const tagFilters = topTags.map(([tag]) =>
     `<button class="tag-btn" data-tag="${tag}">${tag}</button>`
   ).join('\n');
@@ -516,6 +529,46 @@ function renderMagazineHtml(articles: Article[]): string {
       background: var(--bg-elevated);
       border-color: var(--accent);
       color: var(--accent);
+    }
+
+    .sort-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-left: 1rem;
+      padding-left: 1rem;
+      border-left: 1px solid var(--border);
+    }
+
+    .sort-btn {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.35rem 0.7rem;
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .sort-btn:hover, .sort-btn.active {
+      background: var(--bg-elevated);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .sort-btn .sort-icon {
+      font-size: 0.6rem;
+      opacity: 0.7;
+    }
+
+    .sort-btn.active .sort-icon {
+      opacity: 1;
     }
 
     .hidden {
@@ -1139,6 +1192,24 @@ function renderMagazineHtml(articles: Article[]): string {
         padding: 1rem 1.5rem;
       }
 
+      .filters-row {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .tag-filters {
+        flex-wrap: wrap;
+        width: 100%;
+      }
+
+      .sort-controls {
+        margin-left: 0;
+        padding-left: 0;
+        border-left: none;
+        padding-top: 0.5rem;
+        width: 100%;
+      }
+
       .articles-section {
         padding: 2rem 1.5rem;
       }
@@ -1289,6 +1360,10 @@ function renderMagazineHtml(articles: Article[]): string {
         <span class="filter-label">Filter by</span>
         <button class="tag-btn active" data-tag="all">All</button>
         ${tagFilters}
+        <div class="sort-controls">
+          <span class="filter-label">Sort by</span>
+          <button class="sort-btn active" data-sort="added" data-order="desc">Added <span class="sort-icon">↓</span></button>
+        </div>
       </div>
     </div>
   </section>
@@ -1330,6 +1405,16 @@ function renderMagazineHtml(articles: Article[]): string {
 
   <script>
     (function() {
+      const DIFFICULTY_LABELS = {
+        '한국어': { beginner: '입문', intermediate: '중급', advanced: '심화' },
+        'default': { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' },
+      };
+      const CURRENT_LANGUAGE = '${language}';
+      function getDifficultyLabel(difficulty) {
+        const labels = DIFFICULTY_LABELS[CURRENT_LANGUAGE] || DIFFICULTY_LABELS['default'];
+        return labels[difficulty] || labels['intermediate'];
+      }
+
       const html = document.documentElement;
       const themeToggle = document.getElementById('theme-toggle');
       const THEME_KEY = 'linkpress-theme';
@@ -1495,6 +1580,47 @@ function renderMagazineHtml(articles: Article[]): string {
         });
       });
 
+      let currentSort = 'added';
+      let currentOrder = 'desc';
+
+      function sortArticles(sortBy, order) {
+        const grids = [unreadGrid, readGrid];
+        grids.forEach(grid => {
+          const cards = Array.from(grid.querySelectorAll('.article-card'));
+          cards.sort((a, b) => {
+            const aVal = parseInt(a.dataset.index) || 0;
+            const bVal = parseInt(b.dataset.index) || 0;
+            return order === 'desc' ? aVal - bVal : bVal - aVal;
+          });
+          cards.forEach(card => grid.appendChild(card));
+        });
+        currentPage = 1;
+        updatePagination();
+      }
+
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sortBy = btn.dataset.sort;
+          const wasActive = btn.classList.contains('active');
+          
+          if (wasActive) {
+            const newOrder = btn.dataset.order === 'desc' ? 'asc' : 'desc';
+            btn.dataset.order = newOrder;
+            btn.querySelector('.sort-icon').textContent = newOrder === 'desc' ? '↓' : '↑';
+            currentOrder = newOrder;
+          } else {
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentSort = sortBy;
+            currentOrder = btn.dataset.order;
+          }
+          
+          sortArticles(currentSort, currentOrder);
+        });
+      });
+
+      sortArticles(currentSort, currentOrder);
+
       async function toggleRead(card) {
         const id = card.dataset.id;
         const isRead = card.dataset.read === 'true';
@@ -1576,11 +1702,13 @@ function renderMagazineHtml(articles: Article[]): string {
 
       function createArticleCard(article) {
         const div = document.createElement('article');
-        const isRead = !!article.readAt;
-        const readingTime = article.readingTimeMinutes || 0;
+  const isRead = !!article.readAt;
+  const readingTime = article.readingTimeMinutes || 0;
+  const publishedDate = article.publishedAt ? formatDate(article.publishedAt) : null;
+  const publishedTimestamp = article.publishedAt ? article.publishedAt.getTime() : 0;
         const tags = article.tags || [];
         const difficulty = article.difficulty || 'intermediate';
-        const difficultyLabels = { beginner: '입문', intermediate: '중급', advanced: '심화' };
+        const difficultyLabel = getDifficultyLabel(difficulty);
         
         let hostname = '';
         try { hostname = new URL(article.url).hostname.replace('www.', ''); } catch {}
@@ -1604,7 +1732,7 @@ function renderMagazineHtml(articles: Article[]): string {
           \${imageHtml}
           <div class="article-content">
             <div class="article-meta-row">
-              <span class="article-difficulty difficulty-\${difficulty}">\${difficultyLabels[difficulty]}</span>
+              <span class="article-difficulty difficulty-\${difficulty}">\${difficultyLabel}</span>
               <span class="article-reading-time">\${readingTime || '?'} min read</span>
             </div>
             <h3 class="article-headline">
@@ -1642,7 +1770,7 @@ interface IssueStats {
   totalReadingTime: number;
 }
 
-function renderFeaturedCard(article: Article, stats: IssueStats): string {
+function renderFeaturedCard(article: Article, stats: IssueStats, language: string): string {
   const summary = parseSummary(article.summary);
 
   const hostname = (() => {
@@ -1659,9 +1787,10 @@ function renderFeaturedCard(article: Article, stats: IssueStats): string {
 
   const isRead = !!article.readAt;
   const readingTime = article.readingTimeMinutes || 0;
+  const publishedTimestamp = article.publishedAt ? article.publishedAt.getTime() : 0;
 
   return `
-    <section class="hero" data-read="${isRead}" data-reading-time="${readingTime}">
+    <section class="hero" data-read="${isRead}" data-reading-time="${readingTime}" data-published="${publishedTimestamp}">
       <div class="hero-main">
         <div class="hero-content">
           <h2 class="hero-headline">
@@ -1695,7 +1824,7 @@ function renderFeaturedCard(article: Article, stats: IssueStats): string {
   `;
 }
 
-function renderArticleCard(article: Article, index: number): string {
+function renderArticleCard(article: Article, index: number, language: string): string {
   const summary = parseSummary(article.summary);
 
   const hostname = (() => {
@@ -1714,7 +1843,7 @@ function renderArticleCard(article: Article, index: number): string {
   const difficulty = article.difficulty || 'intermediate';
   const sourceLabel = article.sourceLabel || 'Article';
 
-  const difficultyLabel = { beginner: '입문', intermediate: '중급', advanced: '심화' }[difficulty];
+  const difficultyLabel = getDifficultyLabel(difficulty, language);
   const difficultyClass = `difficulty-${difficulty}`;
   const formattedIndex = String(index + 2).padStart(2, '0');
 
@@ -1743,9 +1872,11 @@ function renderArticleCard(article: Article, index: number): string {
 
   const isRead = !!article.readAt;
   const readingTime = article.readingTimeMinutes || 0;
+  const publishedTimestamp = article.publishedAt ? article.publishedAt.getTime() : 0;
+  const publishedDate = article.publishedAt ? formatDate(article.publishedAt) : null;
 
   return `
-    <article class="article-card ${article.image ? 'has-image' : ''}" data-tags="${article.tags.join(',')}" data-index="${formattedIndex}" data-id="${article.id}" data-read="${isRead}" data-reading-time="${readingTime}">
+    <article class="article-card ${article.image ? 'has-image' : ''}" data-tags="${article.tags.join(',')}" data-index="${formattedIndex}" data-id="${article.id}" data-read="${isRead}" data-reading-time="${readingTime}" data-published="${publishedTimestamp}">
       <button class="read-toggle-btn" aria-label="Mark as ${isRead ? 'unread' : 'read'}">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -1772,6 +1903,7 @@ function renderArticleCard(article: Article, index: number): string {
             <span class="article-source-label">${escapeHtml(sourceLabel)}</span>
             <span class="article-source-divider">·</span>
             <span class="article-source">${escapeHtml(hostname)}</span>
+            ${publishedDate ? `<span class="article-source-divider">·</span><span class="article-published-date">${publishedDate}</span>` : ''}
           </div>
         </div>
 
@@ -1790,4 +1922,11 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function formatDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}.${month}.${day}`;
 }

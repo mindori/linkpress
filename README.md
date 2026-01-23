@@ -161,7 +161,6 @@ linkpress serve --watch
 ### 🌍 Multilingual
 AI summaries in your preferred language (English, 한국어, 日本語, 中文, etc.)
 
-
 ## Commands
 
 | Command | Description |
