@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { program } from 'commander';
+import { program } from "commander";
 import {
   addCommand,
   clearCommand,
@@ -10,20 +10,20 @@ import {
   serveCommand,
   sourceCommand,
   syncCommand,
-} from './commands/index.js';
+} from "./commands/index.js";
 
-process.on('uncaughtException', (error) => {
-  if (error.name === 'ExitPromptError') {
-    console.log('\n');
+process.on("uncaughtException", (error) => {
+  if (error.name === "ExitPromptError") {
+    console.log("\n");
     process.exit(0);
   }
   throw error;
 });
 
 program
-  .name('linkpress')
-  .description('Turn your Slack links into a personal tech magazine')
-  .version('0.3.0');
+  .name("linkpress")
+  .description("Turn your Slack links into a personal tech magazine")
+  .version("0.3.1");
 
 program.addCommand(initCommand);
 program.addCommand(addCommand);
